@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../domain/models/content_item_model.dart';
 import '../cubit/content_cubit.dart';
 import '../cubit/content_state.dart';
-import 'package:record/record.dart';
+import 'package:record/record.dart'; // В версии 4.4.4 здесь лежит класс Record
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 
@@ -16,7 +16,8 @@ class ContentScreen extends StatefulWidget {
 
 class _ContentScreenState extends State<ContentScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final _recorder = AudioRecorder();
+  // ИСПОРАВЛЕНО: заменено AudioRecorder() на Record()
+  final _recorder = Record();
   bool _isRecording = false;
   String? _recordingPath;
 
@@ -29,7 +30,7 @@ class _ContentScreenState extends State<ContentScreen> with SingleTickerProvider
   @override
   void dispose() {
     _tabController.dispose();
-    _recorder.dispose();
+    _recorder.dispose(); // Метод dispose совпадает
     super.dispose();
   }
 
@@ -39,8 +40,15 @@ class _ContentScreenState extends State<ContentScreen> with SingleTickerProvider
         final directory = await getTemporaryDirectory();
         _recordingPath = '${directory.path}/temp_record_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
-        const config = RecordConfig();
-        await _recorder.start(config, path: _recordingPath!);
+        // ИСПРАВЛЕНО: В версии 4.4.4 нет класса RecordConfig.
+        // Параметры передаются напрямую в метод start()
+        await _recorder.start(
+          path: _recordingPath, // Путь передается сюда
+          encoder: AudioEncoder.aacLc, // Аналог настроек из Config
+          bitRate: 128000,
+          samplingRate: 44100,
+        );
+
         setState(() {
           _isRecording = true;
         });
@@ -51,6 +59,7 @@ class _ContentScreenState extends State<ContentScreen> with SingleTickerProvider
   }
 
   Future<void> _stopRecording(ContentType type) async {
+    // Метод stop() в 4.4.4 возвращает путь String?
     final path = await _recorder.stop();
     setState(() {
       _isRecording = false;
@@ -63,7 +72,6 @@ class _ContentScreenState extends State<ContentScreen> with SingleTickerProvider
           context.read<ContentCubit>().addRecording(text, type, path);
         }
       } else {
-        // Delete temp file if no text provided
         await File(path).delete();
       }
     }
@@ -91,9 +99,6 @@ class _ContentScreenState extends State<ContentScreen> with SingleTickerProvider
   Future<void> _generateAiVoice(ContentType type) async {
     final text = await _showTextPrompt();
     if (text != null && text.isNotEmpty) {
-      // In a real app, you would get the API key from a secure storage or settings.
-      // For the prototype, we can ask the user or use a hardcoded (BAD!) one.
-      // Let's assume there's a setting for this.
       if (mounted) {
         context.read<ContentCubit>().generateAiVoice(text, type, 'YOUR_OPENAI_API_KEY');
       }
@@ -131,9 +136,9 @@ class _ContentScreenState extends State<ContentScreen> with SingleTickerProvider
           const Padding(padding: EdgeInsets.only(top: 16)),
           FloatingActionButton(
             heroTag: 'record',
-            onPressed: _isRecording 
-              ? () => _stopRecording(_tabController.index == 0 ? ContentType.affirmation : ContentType.trigger)
-              : _startRecording,
+            onPressed: _isRecording
+                ? () => _stopRecording(_tabController.index == 0 ? ContentType.affirmation : ContentType.trigger)
+                : _startRecording,
             backgroundColor: _isRecording ? Colors.red : null,
             child: Icon(_isRecording ? Icons.stop : Icons.mic),
           ),
