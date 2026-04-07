@@ -39,7 +39,7 @@ class LucidDriftApp extends StatelessWidget {
             brightness: Brightness.dark,
           ),
           scaffoldBackgroundColor: const Color(0xFF0A0A0A),
-          cardTheme: CardTheme(
+          cardTheme: CardThemeData(
             color: const Color(0xFF1E1E1E),
             elevation: 4,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
