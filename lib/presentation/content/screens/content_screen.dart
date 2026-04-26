@@ -128,12 +128,12 @@ class _ContentScreenState extends State<ContentScreen> with SingleTickerProvider
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          FloatingActionButton(
-            heroTag: 'ai',
-            onPressed: () => _generateAiVoice(_tabController.index == 0 ? ContentType.affirmation : ContentType.trigger),
-            child: const Icon(Icons.auto_awesome),
-          ),
-          const Padding(padding: EdgeInsets.only(top: 16)),
+          // FloatingActionButton(
+          //   heroTag: 'ai',
+          //   onPressed: () => _generateAiVoice(_tabController.index == 0 ? ContentType.affirmation : ContentType.trigger),
+          //   child: const Icon(Icons.auto_awesome),
+          // ),
+          // const Padding(padding: EdgeInsets.only(top: 16)),
           FloatingActionButton(
             heroTag: 'record',
             onPressed: _isRecording
