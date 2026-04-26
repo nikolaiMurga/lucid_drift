@@ -275,7 +275,7 @@ class _CreateItemSheetState extends State<_CreateItemSheet> {
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.dream),
               onPressed: _submit,
-              child: const Text('Создать и записать голос'),
+              child: const Text('Создать и записать голос', style: TextStyle(color: AppColors.textPrimary)),
             ),
           ),
         ],
