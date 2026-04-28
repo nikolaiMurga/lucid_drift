@@ -13,8 +13,14 @@ import '../cubit/recorder_state.dart';
 class RecorderScreen extends StatelessWidget {
   final String? contentItemId;
   final ContentType? initialType;
+  final String? phraseText; // текст для чтения вслух
 
-  const RecorderScreen({super.key, this.contentItemId, this.initialType});
+  const RecorderScreen({
+    super.key,
+    this.contentItemId,
+    this.initialType,
+    this.phraseText,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +35,10 @@ class RecorderScreen extends StatelessWidget {
       )..init(),
       child: _RecorderView(
         contentItemId: contentItemId,
-        initialType: initialType ?? const ContentType.affirmation(category: AffirmationCategory.confidence),
+        initialType: initialType ??
+            const ContentType.affirmation(
+                category: AffirmationCategory.confidence),
+        phraseText: phraseText,
       ),
     );
   }
@@ -38,7 +47,13 @@ class RecorderScreen extends StatelessWidget {
 class _RecorderView extends StatefulWidget {
   final String? contentItemId;
   final ContentType initialType;
-  const _RecorderView({this.contentItemId, required this.initialType});
+  final String? phraseText;
+
+  const _RecorderView({
+    this.contentItemId,
+    required this.initialType,
+    this.phraseText,
+  });
 
   @override
   State<_RecorderView> createState() => _RecorderViewState();
@@ -49,10 +64,15 @@ class _RecorderViewState extends State<_RecorderView> {
   final _textCtrl = TextEditingController();
   late ContentType _selectedType;
 
+  bool get _isEditing => widget.contentItemId != null;
+
   @override
   void initState() {
     super.initState();
     _selectedType = widget.initialType;
+    if (widget.phraseText != null) {
+      _textCtrl.text = widget.phraseText!;
+    }
   }
 
   @override
@@ -67,11 +87,21 @@ class _RecorderViewState extends State<_RecorderView> {
     return BlocConsumer<RecorderCubit, RecorderState>(
       listener: (context, state) {
         if (state is RecorderSaved) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Запись сохранена'),
+              backgroundColor: AppColors.teal,
+              duration: Duration(seconds: 2),
+            ),
+          );
           context.pop();
         }
         if (state is RecorderError) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       },
@@ -79,19 +109,22 @@ class _RecorderViewState extends State<_RecorderView> {
         return Scaffold(
           backgroundColor: AppColors.background,
           appBar: AppBar(
-            title: Text(widget.contentItemId != null ? 'Перезаписать' : 'Новая запись'),
+            title: Text(_isEditing ? 'Перезаписать' : 'Новая запись'),
             leading: IconButton(
               icon: const Icon(Icons.close),
               onPressed: () => context.pop(),
             ),
           ),
           body: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (widget.contentItemId == null) ...[
+                  const SizedBox(height: 12),
+
+                  // Форма — только для новых
+                  if (!_isEditing) ...[
                     _TypeSelector(
                       selected: _selectedType,
                       onChanged: (t) => setState(() => _selectedType = t),
@@ -99,69 +132,66 @@ class _RecorderViewState extends State<_RecorderView> {
                     const SizedBox(height: 16),
                     TextField(
                       controller: _titleCtrl,
-                      decoration: const InputDecoration(labelText: 'Название'),
+                      decoration:
+                          const InputDecoration(labelText: 'Название'),
                       textCapitalization: TextCapitalization.sentences,
                     ),
                     const SizedBox(height: 10),
-                    TextField(
-                      controller: _textCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Текст фразы',
-                        hintText: 'Я спокоен и уверен в себе...',
-                      ),
-                      textCapitalization: TextCapitalization.sentences,
-                      maxLines: 3,
-                    ),
-                    const SizedBox(height: 24),
                   ],
 
-                  // Текст для чтения (если редактируем существующий)
-                  if (widget.contentItemId != null) ...[
-                    Text('Прочитай фразу вслух и нажми запись',
-                      style: Theme.of(context).textTheme.bodyMedium),
-                    const SizedBox(height: 24),
+                  // Текст фразы — всегда показываем
+                  if (widget.phraseText != null || !_isEditing) ...[
+                    _PhraseCard(
+                      text: widget.phraseText ?? _textCtrl.text,
+                      type: _selectedType,
+                      isEditing: !_isEditing,
+                      controller: _isEditing ? null : _textCtrl,
+                    ),
+                    const SizedBox(height: 28),
                   ],
 
                   // Waveform
-                  Expanded(child: _Waveform(state: state)),
+                  _Waveform(state: state),
+                  const SizedBox(height: 8),
 
-                  // Elapsed
+                  // Таймер
                   Center(child: _ElapsedTimer(state: state)),
                   const SizedBox(height: 32),
 
-                  // Controls
+                  // Кнопки управления записью
                   _RecordControls(
                     state: state,
-                    onRecord: () => context.read<RecorderCubit>().startRecording(),
-                    onStop: () => context.read<RecorderCubit>().stopRecording(),
+                    onRecord: () =>
+                        context.read<RecorderCubit>().startRecording(),
+                    onStop: () =>
+                        context.read<RecorderCubit>().stopRecording(),
                     onPlay: () => context.read<RecorderCubit>().playback(),
-                    onStopPlay: () => context.read<RecorderCubit>().stopPlayback(),
+                    onStopPlay: () =>
+                        context.read<RecorderCubit>().stopPlayback(),
                     onReset: () => context.read<RecorderCubit>().reset(),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
-                  // Save button
+                  // Кнопка сохранить
                   if (state is RecorderStopped)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.dream,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        onPressed: () => context.read<RecorderCubit>().save(
-                          title: _titleCtrl.text.isNotEmpty ? _titleCtrl.text : 'Без названия',
-                          text: _textCtrl.text,
-                          type: _selectedType,
-                          existingItemId: widget.contentItemId,
-                        ),
-                        child: const Text('Сохранить запись', style: TextStyle(fontSize: 16)),
+                    _SaveButton(
+                      onSave: () => context.read<RecorderCubit>().save(
+                        title: _titleCtrl.text.isNotEmpty
+                            ? _titleCtrl.text
+                            : 'Без названия',
+                        text: _textCtrl.text.isNotEmpty
+                            ? _textCtrl.text
+                            : (widget.phraseText ?? ''),
+                        type: _selectedType,
+                        existingItemId: widget.contentItemId,
                       ),
                     ),
 
                   if (state is RecorderSaving)
                     const Center(child: CircularProgressIndicator()),
+
+                  const SizedBox(height: 32),
                 ],
               ),
             ),
@@ -171,6 +201,93 @@ class _RecorderViewState extends State<_RecorderView> {
     );
   }
 }
+
+// ─── Phrase card ──────────────────────────────────────────────────────────────
+
+class _PhraseCard extends StatelessWidget {
+  final String text;
+  final ContentType type;
+  final bool isEditing;
+  final TextEditingController? controller;
+
+  const _PhraseCard({
+    required this.text,
+    required this.type,
+    required this.isEditing,
+    this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = type is AffirmationContent ? AppColors.affirmation : AppColors.lucid;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                type is AffirmationContent
+                    ? Icons.self_improvement
+                    : Icons.visibility_outlined,
+                size: 14,
+                color: color,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Прочитай вслух:',
+                style: TextStyle(
+                    fontSize: 11,
+                    color: color,
+                    fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (isEditing && controller != null)
+            TextField(
+              controller: controller,
+              style: const TextStyle(
+                fontSize: 18,
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w300,
+                height: 1.5,
+              ),
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                filled: false,
+                hintText: 'Я спокоен и уверен в себе...',
+              ),
+              maxLines: null,
+              textCapitalization: TextCapitalization.sentences,
+            )
+          else
+            Text(
+              text,
+              style: const TextStyle(
+                fontSize: 18,
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w300,
+                height: 1.5,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Type selector ────────────────────────────────────────────────────────────
 
 class _TypeSelector extends StatelessWidget {
   final ContentType selected;
@@ -186,14 +303,16 @@ class _TypeSelector extends StatelessWidget {
           label: 'Аффирмация',
           color: AppColors.affirmation,
           isSelected: isAffirmation,
-          onTap: () => onChanged(const ContentType.affirmation(category: AffirmationCategory.confidence)),
+          onTap: () => onChanged(const ContentType.affirmation(
+              category: AffirmationCategory.confidence)),
         ),
         const SizedBox(width: 8),
         _TypeChip(
           label: 'Триггер',
           color: AppColors.lucid,
           isSelected: !isAffirmation,
-          onTap: () => onChanged(const ContentType.lucidTrigger(technique: TriggerTechnique.mild)),
+          onTap: () => onChanged(const ContentType.lucidTrigger(
+              technique: TriggerTechnique.mild)),
         ),
       ],
     );
@@ -205,7 +324,13 @@ class _TypeChip extends StatelessWidget {
   final Color color;
   final bool isSelected;
   final VoidCallback onTap;
-  const _TypeChip({required this.label, required this.color, required this.isSelected, required this.onTap});
+
+  const _TypeChip({
+    required this.label,
+    required this.color,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -218,15 +343,20 @@ class _TypeChip extends StatelessWidget {
           border: Border.all(color: isSelected ? color : AppColors.border),
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Text(label, style: TextStyle(
-          color: isSelected ? color : AppColors.textSecondary,
-          fontSize: 13,
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-        )),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? color : AppColors.textSecondary,
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
       ),
     );
   }
 }
+
+// ─── Waveform ─────────────────────────────────────────────────────────────────
 
 class _Waveform extends StatelessWidget {
   final RecorderState state;
@@ -234,18 +364,24 @@ class _Waveform extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final amplitude = state is RecorderRecording
-        ? (state as RecorderRecording).amplitude
-        : 0.0;
     final isRecording = state is RecorderRecording;
+    final isPlaying = state is RecorderPlaying;
+    final amplitude = isRecording
+        ? (state as RecorderRecording).amplitude
+        : (isPlaying ? 0.4 : 0.0);
 
-    return Center(
+    return SizedBox(
+      height: 72,
       child: CustomPaint(
-        size: const Size(double.infinity, 80),
+        size: const Size(double.infinity, 72),
         painter: _WaveformPainter(
           amplitude: amplitude,
-          isActive: isRecording,
-          color: isRecording ? AppColors.dream : AppColors.textTertiary,
+          isActive: isRecording || isPlaying,
+          color: isRecording
+              ? AppColors.dream
+              : isPlaying
+                  ? AppColors.teal
+                  : AppColors.textTertiary,
         ),
       ),
     );
@@ -256,7 +392,12 @@ class _WaveformPainter extends CustomPainter {
   final double amplitude;
   final bool isActive;
   final Color color;
-  _WaveformPainter({required this.amplitude, required this.isActive, required this.color});
+
+  _WaveformPainter({
+    required this.amplitude,
+    required this.isActive,
+    required this.color,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -266,15 +407,13 @@ class _WaveformPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     const barCount = 40;
-    final barWidth = size.width / (barCount * 2);
-    final rng = Random(42); // seed фиксирован — статичный паттерн для idle
+    final spacing = size.width / barCount;
+    final rng = Random(42);
 
     for (int i = 0; i < barCount; i++) {
-      final x = i * barWidth * 2 + barWidth;
-      final base = isActive
-          ? (rng.nextDouble() * 0.4 + 0.1)
-          : 0.15;
-      final h = (base + amplitude * 0.6) * size.height;
+      final x = i * spacing + spacing / 2;
+      final base = isActive ? (rng.nextDouble() * 0.3 + 0.05) : 0.1;
+      final h = (base + amplitude * 0.65) * size.height;
       canvas.drawLine(
         Offset(x, size.height / 2 - h / 2),
         Offset(x, size.height / 2 + h / 2),
@@ -284,8 +423,11 @@ class _WaveformPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_WaveformPainter old) => old.amplitude != amplitude || old.isActive != isActive;
+  bool shouldRepaint(_WaveformPainter old) =>
+      old.amplitude != amplitude || old.isActive != isActive || old.color != color;
 }
+
+// ─── Elapsed timer ────────────────────────────────────────────────────────────
 
 class _ElapsedTimer extends StatelessWidget {
   final RecorderState state;
@@ -299,24 +441,58 @@ class _ElapsedTimer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final elapsed = switch (state) {
+    final duration = switch (state) {
       RecorderRecording(:final elapsed) => elapsed,
       RecorderStopped(:final duration) => duration,
-      RecorderPlaying(:final position) => position,
+      RecorderPlaying(:final total) => total,
       _ => Duration.zero,
     };
 
-    return Text(
-      _format(elapsed),
-      style: const TextStyle(
-        fontSize: 36,
-        fontWeight: FontWeight.w200,
-        letterSpacing: 4,
-        color: AppColors.textPrimary,
+    final position = state is RecorderPlaying
+        ? (state as RecorderPlaying).position
+        : null;
+
+    return Column(
+      children: [
+        Text(
+          position != null
+              ? '${_format(position)} / ${_format(duration)}'
+              : _format(duration),
+          style: const TextStyle(
+            fontSize: 34,
+            fontWeight: FontWeight.w200,
+            letterSpacing: 4,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        if (state is RecorderPlaying) ...[
+          const SizedBox(height: 8),
+          _PlaybackProgressBar(state: state as RecorderPlaying),
+        ],
+      ],
+    );
+  }
+}
+
+class _PlaybackProgressBar extends StatelessWidget {
+  final RecorderPlaying state;
+  const _PlaybackProgressBar({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: LinearProgressIndicator(
+        value: state.progress,
+        backgroundColor: AppColors.border,
+        valueColor: const AlwaysStoppedAnimation(AppColors.teal),
+        borderRadius: BorderRadius.circular(2),
       ),
     );
   }
 }
+
+// ─── Record controls ──────────────────────────────────────────────────────────
 
 class _RecordControls extends StatelessWidget {
   final RecorderState state;
@@ -341,21 +517,58 @@ class _RecordControls extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: switch (state) {
         RecorderIdle() || RecorderReady() => [
-          _BigButton(icon: Icons.mic, color: AppColors.dream, onTap: onRecord, label: 'Записать'),
-        ],
+            _BigButton(
+              icon: Icons.mic,
+              color: AppColors.dream,
+              onTap: onRecord,
+              label: 'Записать',
+            ),
+          ],
         RecorderRecording() => [
-          _BigButton(icon: Icons.stop, color: Colors.red, onTap: onStop, label: 'Стоп'),
-        ],
+            _BigButton(
+              icon: Icons.stop,
+              color: Colors.red,
+              onTap: onStop,
+              label: 'Стоп',
+            ),
+          ],
         RecorderStopped() => [
-          _SmallButton(icon: Icons.refresh, onTap: onReset, tooltip: 'Перезаписать'),
-          const SizedBox(width: 20),
-          _BigButton(icon: Icons.play_arrow, color: AppColors.teal, onTap: onPlay, label: 'Слушать'),
-        ],
+            _SmallButton(
+              icon: Icons.refresh,
+              onTap: onReset,
+              tooltip: 'Перезаписать',
+            ),
+            const SizedBox(width: 24),
+            _BigButton(
+              icon: Icons.play_arrow,
+              color: AppColors.teal,
+              onTap: onPlay,
+              label: 'Прослушать',
+            ),
+          ],
         RecorderPlaying() => [
-          _BigButton(icon: Icons.stop, color: AppColors.teal, onTap: onStopPlay, label: 'Стоп'),
-        ],
-        RecorderSaving() => [const CircularProgressIndicator()],
-        _ => [],
+            _BigButton(
+              icon: Icons.stop,
+              color: AppColors.teal,
+              onTap: onStopPlay,
+              label: 'Стоп',
+            ),
+          ],
+        RecorderSaving() || RecorderSaved() => [
+            const SizedBox(
+              width: 48,
+              height: 48,
+              child: CircularProgressIndicator(),
+            ),
+          ],
+        RecorderError() => [
+            _BigButton(
+              icon: Icons.mic,
+              color: AppColors.dream,
+              onTap: onRecord,
+              label: 'Попробовать снова',
+            ),
+          ],
       },
     );
   }
@@ -366,7 +579,13 @@ class _BigButton extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
   final String label;
-  const _BigButton({required this.icon, required this.color, required this.onTap, required this.label});
+
+  const _BigButton({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -386,7 +605,10 @@ class _BigButton extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
       ],
     );
   }
@@ -396,7 +618,12 @@ class _SmallButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final String tooltip;
-  const _SmallButton({required this.icon, required this.onTap, required this.tooltip});
+
+  const _SmallButton({
+    required this.icon,
+    required this.onTap,
+    required this.tooltip,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -404,6 +631,32 @@ class _SmallButton extends StatelessWidget {
       icon: Icon(icon, color: AppColors.textSecondary),
       onPressed: onTap,
       tooltip: tooltip,
+    );
+  }
+}
+
+// ─── Save button ──────────────────────────────────────────────────────────────
+
+class _SaveButton extends StatelessWidget {
+  final VoidCallback onSave;
+  const _SaveButton({required this.onSave});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.dream,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+        onPressed: onSave,
+        icon: const Icon(Icons.check, color: AppColors.textPrimary),
+        label: const Text(
+          'Сохранить запись',
+          style: TextStyle(fontSize: 16, color: AppColors.textPrimary),
+        ),
+      ),
     );
   }
 }

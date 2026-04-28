@@ -5,21 +5,19 @@ import '../../../domain/entities/content_type.dart';
 enum ContentTab { affirmations, lucidTriggers }
 
 extension ContentTabExt on ContentTab {
-  ContentType get contentType => switch (this) {
-    ContentTab.affirmations  => const ContentType.affirmation(category: AffirmationCategory.custom),
-    ContentTab.lucidTriggers => const ContentType.lucidTrigger(technique: TriggerTechnique.mild),
-  };
-
   String get label => switch (this) {
-    ContentTab.affirmations  => 'Аффирмации',
+    ContentTab.affirmations => 'Аффирмации',
     ContentTab.lucidTriggers => 'Триггеры осознанности',
   };
 }
 
 sealed class ContentLibraryState extends Equatable {
   final ContentTab activeTab;
+
   const ContentLibraryState(this.activeTab);
-  @override List<Object?> get props => [activeTab];
+
+  @override
+  List<Object?> get props => [activeTab];
 }
 
 class ContentLibraryLoading extends ContentLibraryState {
@@ -29,24 +27,27 @@ class ContentLibraryLoading extends ContentLibraryState {
 class ContentLibraryLoaded extends ContentLibraryState {
   final List<ContentItem> affirmations;
   final List<ContentItem> lucidTriggers;
+  final String? playingItemId;
 
-  const ContentLibraryLoaded({
-    required ContentTab activeTab,
-    required this.affirmations,
-    required this.lucidTriggers,
-  }) : super(activeTab);
+  const ContentLibraryLoaded(super.activeTab, {required this.affirmations, required this.lucidTriggers, this.playingItemId});
 
   List<ContentItem> get activeList => switch (activeTab) {
-    ContentTab.affirmations  => affirmations,
+    ContentTab.affirmations => affirmations,
     ContentTab.lucidTriggers => lucidTriggers,
   };
 
+  ContentLibraryLoaded copyWithPlaying(String? id) =>
+      ContentLibraryLoaded(activeTab, affirmations: affirmations, lucidTriggers: lucidTriggers, playingItemId: id);
+
   @override
-  List<Object?> get props => [activeTab, affirmations, lucidTriggers];
+  List<Object?> get props => [activeTab, affirmations, lucidTriggers, playingItemId];
 }
 
 class ContentLibraryError extends ContentLibraryState {
   final String message;
+
   const ContentLibraryError(super.activeTab, this.message);
-  @override List<Object?> get props => [activeTab, message];
+
+  @override
+  List<Object?> get props => [activeTab, message];
 }

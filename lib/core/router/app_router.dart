@@ -7,11 +7,10 @@ import '../../presentation/common/screens/shell_screen.dart';
 import '../../domain/entities/content_type.dart';
 
 abstract final class AppRoutes {
-  static const shell      = '/';
-  static const library    = '/library';
-  static const recorder   = '/recorder';
-  static const playlist   = '/playlist';
-  static const schedule   = '/schedule';
+  static const library  = '/library';
+  static const recorder = '/recorder';
+  static const playlist = '/playlist';
+  static const schedule = '/schedule';
 }
 
 final appRouter = GoRouter(
@@ -34,7 +33,6 @@ final appRouter = GoRouter(
         ),
       ],
     ),
-    // Recorder — fullscreen, вне shell
     GoRoute(
       path: AppRoutes.recorder,
       builder: (context, state) {
@@ -42,6 +40,7 @@ final appRouter = GoRouter(
         return RecorderScreen(
           contentItemId: extra?['contentItemId'] as String?,
           initialType: extra?['type'] as ContentType?,
+          phraseText: extra?['text'] as String?,
         );
       },
     ),
