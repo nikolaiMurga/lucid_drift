@@ -25,22 +25,25 @@ subprojects {
                 android?.namespace = "com.generated.${project.name.replace("-", "_")}"
             }
 
-            // 2. Исправляем конфликт с атрибутом package в AndroidManifest.xml
+            // 2. Принудительно поднимаем compileSdkVersion для библиотек (в т.ч. isar_flutter_libs),
+            //    собранных против старого API, чтобы устранить ошибку «android:attr/lStar not found».
+            if (android?.compileSdkVersion?.let { it < "android-31" } == true) {
+                android.compileSdkVersion(35)
+            }
+
+            // 3. Исправляем конфликт с атрибутом package в AndroidManifest.xml
             android?.sourceSets?.all {
                 if (manifest.srcFile.exists()) {
                     val manifestFile = manifest.srcFile
                     val content = manifestFile.readText()
                     if (content.contains("package=")) {
-                        // Удаляем атрибут package из манифеста перед сборкой
                         val updatedContent = content.replace(Regex("""package="[^"]*""""), "")
 
-                        // Создаем временную копию манифеста без package
                         val tempDir = File(project.buildDir, "intermediates/fixed_manifests/${this.name}")
                         tempDir.mkdirs()
                         val tempManifest = File(tempDir, "AndroidManifest.xml")
                         tempManifest.writeText(updatedContent)
 
-                        // Указываем Gradle использовать исправленный файл
                         manifest.srcFile(tempManifest)
                     }
                 }
