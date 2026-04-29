@@ -27,30 +27,17 @@ Future<void> setupDi() async {
   // ── Isar ─────────────────────────────────────────────────────────────────
   final dir = await getApplicationDocumentsDirectory();
   final isar = await Isar.open(
-    [
-      ContentItemModelSchema,
-      NightPlaylistModelSchema,
-      SleepScheduleModelSchema,
-      SleepSessionModelSchema,
-    ],
+    [ContentItemModelSchema, NightPlaylistModelSchema, SleepScheduleModelSchema, SleepSessionModelSchema],
     directory: dir.path,
     name: 'default',
   );
   sl.registerSingleton<Isar>(isar);
 
   // ── Repositories ──────────────────────────────────────────────────────────
-  sl.registerLazySingleton<ContentItemRepository>(
-    () => ContentItemRepositoryImpl(sl()),
-  );
-  sl.registerLazySingleton<PlaylistRepository>(
-    () => PlaylistRepositoryImpl(sl()),
-  );
-  sl.registerLazySingleton<SleepScheduleRepository>(
-    () => SleepScheduleRepositoryImpl(sl()),
-  );
-  sl.registerLazySingleton<SleepSessionRepository>(
-    () => SleepSessionRepositoryImpl(sl()),
-  );
+  sl.registerLazySingleton<ContentItemRepository>(() => ContentItemRepositoryImpl(sl()));
+  sl.registerLazySingleton<PlaylistRepository>(() => PlaylistRepositoryImpl(sl()));
+  sl.registerLazySingleton<SleepScheduleRepository>(() => SleepScheduleRepositoryImpl(sl()));
+  sl.registerLazySingleton<SleepSessionRepository>(() => SleepSessionRepositoryImpl(sl()));
 
   // ── Use Cases: Content ────────────────────────────────────────────────────
   sl.registerFactory(() => GetContentItemsUseCase(sl()));
@@ -73,9 +60,7 @@ Future<void> setupDi() async {
   sl.registerFactory(() => const CalculateRemTriggerUseCase());
 
   // ── Use Cases: Engine ─────────────────────────────────────────────────────
-  sl.registerFactory(
-    () => ActivateTriggerUseCase(sl(), sl()),
-  );
+  sl.registerFactory(() => ActivateTriggerUseCase(sl(), sl()));
   sl.registerFactory(() => const CancelTriggerUseCase());
   sl.registerFactory(() => GetTodaySessionUseCase(sl()));
   sl.registerFactory(() => SaveDebriefUseCase(sl()));
@@ -89,8 +74,5 @@ Future<void> setupDi() async {
   await NotificationService.init();
   await NotificationService.requestPermissions();
 
-  await Workmanager().initialize(
-    workManagerCallbackDispatcher,
-    isInDebugMode: true,
-  );
+  await Workmanager().initialize(workManagerCallbackDispatcher);
 }
