@@ -70,5 +70,9 @@ Future<void> setupDi() async {
 
   // ── Services ──────────────────────────────────────────────────────────────
   await NotificationService.init();
+  // Сбрасываем все ранее запланированные уведомления при каждом холодном старте,
+  // чтобы стереть устаревшие записи в SharedPreferences, которые вызывают
+  // «Missing type parameter» в flutter_local_notifications v17+.
+  await NotificationService.cancelAll();
   await NotificationService.requestPermissions();
 }

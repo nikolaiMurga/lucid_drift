@@ -53,11 +53,16 @@ class NotificationService {
     return (android ?? true) && (ios ?? true);
   }
 
-  /// Планирует утреннее уведомление-дебриф
+  /// Планирует утреннее уведомление-дебриф.
+  /// Сначала отменяем старую запись, чтобы не получить «Missing type parameter»
+  /// при десериализации устаревших данных из SharedPreferences.
   static Future<void> scheduleMorningDebrief({
     required DateTime wakeTime,
     required DateTime triggerAt,
   }) async {
+    // Удаляем любую ранее сохранённую запись этого уведомления
+    await _plugin.cancel(NotificationIds.morningDebrief);
+
     // tz.TZDateTime.from использует millisecondsSinceEpoch — правильно для любой зоны
     final scheduledDate = tz.TZDateTime.from(wakeTime, tz.local);
 

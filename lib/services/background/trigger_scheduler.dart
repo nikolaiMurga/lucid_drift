@@ -39,6 +39,8 @@ class TriggerScheduler {
   static Future<void> _scheduleLocalNotificationTrigger(
       DateTime triggerAt) async {
     final plugin = FlutterLocalNotificationsPlugin();
+    // Удаляем старую запись перед повторным планированием
+    await plugin.cancel(88);
     final scheduledDate = tz.TZDateTime.from(triggerAt, tz.local);
 
     await plugin.zonedSchedule(
