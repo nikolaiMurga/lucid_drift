@@ -1,5 +1,4 @@
 import 'package:isar/isar.dart';
-import 'package:uuid/uuid.dart';
 import '../../domain/entities/sleep_schedule.dart';
 import '../../domain/repositories/repositories.dart';
 import '../models/sleep_schedule_model.dart';

@@ -74,7 +74,7 @@ class NotificationService {
       '🌙 Как прошла ночь?',
       'Триггер сработал в $h:$m. Запиши свои сны!',
       scheduledDate,
-      NotificationDetails(
+      const NotificationDetails(
         android: AndroidNotificationDetails(
           NotificationChannels.debrief,
           'Утренний дебриф',
@@ -83,7 +83,7 @@ class NotificationService {
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
         ),
-        iOS: const DarwinNotificationDetails(
+        iOS: DarwinNotificationDetails(
           presentAlert: true,
           presentBadge: true,
           presentSound: false,
@@ -104,7 +104,7 @@ class NotificationService {
       NotificationIds.triggerFired,
       'LucidDrift',
       'Аффирмации воспроизводятся... $h:$m',
-      NotificationDetails(
+      const NotificationDetails(
         android: AndroidNotificationDetails(
           NotificationChannels.sleep,
           'Ночной триггер',
@@ -115,7 +115,7 @@ class NotificationService {
           ongoing: true,
           icon: '@mipmap/ic_launcher',
         ),
-        iOS: const DarwinNotificationDetails(
+        iOS: DarwinNotificationDetails(
           presentAlert: false,
           presentBadge: false,
           presentSound: false,

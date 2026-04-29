@@ -20,7 +20,7 @@ Future<void> main() async {
   // WorkManager — регистрируем callback dispatcher
   await Workmanager().initialize(
     workManagerCallbackDispatcher,
-    isInDebugMode: false,
+    // isInDebugMode: true,
   );
 
   runApp(const LucidDriftApp());

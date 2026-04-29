@@ -110,7 +110,7 @@ class RemTriggerService {
   // ── MILD вибро-паттерн ────────────────────────────────────────────────────
 
   static Future<void> _vibrateMild() async {
-    final hasVibrator = await Vibration.hasVibrator() ?? false;
+    final hasVibrator = await Vibration.hasVibrator();
     if (!hasVibrator) return;
 
     // 2 короткие с паузой — классический MILD-сигнал

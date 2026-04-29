@@ -153,9 +153,9 @@ class RemTimeline extends StatelessWidget {
             children: [
               _LegendItem(color: AppColors.dream.withValues(alpha: 0.25), label: 'REM'),
               const SizedBox(width: 12),
-              _LegendItem(color: AppColors.dream, label: 'Целевой REM'),
+              const _LegendItem(color: AppColors.dream, label: 'Целевой REM'),
               const SizedBox(width: 12),
-              _LegendItem(color: AppColors.warm, label: 'Триггер'),
+              const _LegendItem(color: AppColors.warm, label: 'Триггер'),
             ],
           ),
         ],

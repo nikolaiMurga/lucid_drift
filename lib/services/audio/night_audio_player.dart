@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:isar/isar.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../data/models/content_item_model.dart';
 import '../../data/models/night_playlist_model.dart' hide fastHash;

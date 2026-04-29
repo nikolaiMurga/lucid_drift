@@ -291,7 +291,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             children: [
               _sectionLabel(context, 'Пауза между дорожками'),
               const Spacer(),
-              Text('${_pause}с',
+              Text('$_pauseс',
                   style: const TextStyle(
                       color: AppColors.dream, fontWeight: FontWeight.w500)),
             ],
@@ -309,7 +309,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             title: const Text('Зациклить плейлист'),
             subtitle: const Text('Повторять до будильника'),
             value: _loop,
-            activeColor: AppColors.teal,
+            activeThumbColor: AppColors.teal,
             onChanged: (v) => setState(() => _loop = v),
           ),
           const SizedBox(height: 16),

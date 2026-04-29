@@ -3,7 +3,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:timezone/timezone.dart' as tz;
 
-import '../../domain/entities/sleep_schedule.dart';
 import '../notifications/notification_service.dart';
 
 abstract final class TriggerTaskNames {
@@ -78,8 +77,8 @@ class TriggerScheduler {
       null,
       null,
       scheduledDate,
-      NotificationDetails(
-        android: const AndroidNotificationDetails(
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
           'lucid_drift_trigger',
           'REM Триггер',
           channelDescription: 'Внутреннее уведомление для запуска аффирмаций',
@@ -89,7 +88,7 @@ class TriggerScheduler {
           showWhen: false,
           visibility: NotificationVisibility.secret,
         ),
-        iOS: const DarwinNotificationDetails(
+        iOS: DarwinNotificationDetails(
           presentAlert: false,
           presentBadge: false,
           presentSound: false,

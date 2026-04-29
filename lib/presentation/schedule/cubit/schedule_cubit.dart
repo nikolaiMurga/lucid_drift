@@ -58,7 +58,7 @@ class ScheduleCubit extends Cubit<ScheduleState> {
       id: const Uuid().v4(),
       bedTime: const TimeOfDay(hour: 23, minute: 0),
       wakeTime: const TimeOfDay(hour: 7, minute: 0),
-      activeDays: [1, 2, 3, 4, 5],
+      activeDays: const [1, 2, 3, 4, 5],
     );
     await _save(schedule);
     return schedule;

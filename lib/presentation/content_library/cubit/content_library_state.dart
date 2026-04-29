@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 import '../../../domain/entities/content_item.dart';
-import '../../../domain/entities/content_type.dart';
 
 enum ContentTab { affirmations, lucidTriggers }
 

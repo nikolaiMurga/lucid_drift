@@ -1,4 +1,3 @@
-import '../../entities/sleep_schedule.dart';
 import '../../entities/sleep_session.dart';
 import '../../repositories/repositories.dart';
 import '../../../services/background/trigger_scheduler.dart';

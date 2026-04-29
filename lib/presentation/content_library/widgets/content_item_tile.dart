@@ -141,7 +141,7 @@ class _AudioBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final d = item.audioDuration!;
     final s = d.inSeconds;
-    final label = s < 60 ? '${s}с' : '${d.inMinutes}:${(s % 60).toString().padLeft(2, '0')}';
+    final label = s < 60 ? '$sс' : '${d.inMinutes}:${(s % 60).toString().padLeft(2, '0')}';
     final isOwn = item.audioSource is OwnRecording;
     return Row(
       mainAxisSize: MainAxisSize.min,

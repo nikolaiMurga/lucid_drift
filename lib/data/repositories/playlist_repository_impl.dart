@@ -1,5 +1,4 @@
 import 'package:isar/isar.dart';
-import 'package:uuid/uuid.dart';
 import '../../domain/entities/night_playlist.dart';
 import '../../domain/repositories/repositories.dart';
 import '../models/night_playlist_model.dart';

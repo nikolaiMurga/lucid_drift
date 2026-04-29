@@ -44,7 +44,7 @@ class _ScheduleView extends StatelessWidget {
               if (state is ScheduleLoaded)
                 Switch(
                   value: state.schedule.isActive,
-                  activeColor: AppColors.teal,
+                  activeThumbColor: AppColors.teal,
                   onChanged: (_) => context.read<ScheduleCubit>().toggleActive(),
                 ),
             ],
@@ -129,7 +129,7 @@ class _ScheduleBody extends StatelessWidget {
         const SizedBox(height: 20),
 
         // ── Время ─────────────────────────────────────────────────────────
-        _SectionLabel('Время сна'),
+        const _SectionLabel('Время сна'),
         const SizedBox(height: 8),
         Row(
           children: [
@@ -157,13 +157,13 @@ class _ScheduleBody extends StatelessWidget {
         const SizedBox(height: 20),
 
         // ── Таймлайн ──────────────────────────────────────────────────────
-        _SectionLabel('Фазы сна'),
+        const _SectionLabel('Фазы сна'),
         const SizedBox(height: 8),
         RemTimeline(schedule: s, remWindows: state.remWindows, triggerAt: state.triggerAt),
         const SizedBox(height: 20),
 
         // ── Цикл ──────────────────────────────────────────────────────────
-        _SectionLabel('Целевой REM-цикл'),
+        const _SectionLabel('Целевой REM-цикл'),
         const SizedBox(height: 4),
         Text('Триггер: ${_fmtDt(state.triggerAt)}', style: const TextStyle(fontSize: 12, color: AppColors.teal)),
         const SizedBox(height: 10),
@@ -171,7 +171,7 @@ class _ScheduleBody extends StatelessWidget {
         const SizedBox(height: 20),
 
         // ── Дни ───────────────────────────────────────────────────────────
-        _SectionLabel('Активные дни'),
+        const _SectionLabel('Активные дни'),
         const SizedBox(height: 8),
         _DaySelector(activeDays: s.activeDays, onToggle: (d) => context.read<ScheduleCubit>().toggleDay(d)),
         const SizedBox(height: 20),
@@ -662,7 +662,7 @@ class _WbtbSection extends StatelessWidget {
                 ],
               ),
               const Spacer(),
-              Switch(value: schedule.wbtbMode, activeColor: AppColors.teal, onChanged: (_) => context.read<ScheduleCubit>().toggleWbtb()),
+              Switch(value: schedule.wbtbMode, activeThumbColor: AppColors.teal, onChanged: (_) => context.read<ScheduleCubit>().toggleWbtb()),
             ],
           ),
           if (schedule.wbtbMode) ...[
