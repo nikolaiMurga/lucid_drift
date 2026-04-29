@@ -1,6 +1,7 @@
 import 'package:get_it/get_it.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:workmanager/workmanager.dart';
 
 import '../../data/models/content_item_model.dart';
 import '../../data/models/night_playlist_model.dart';
@@ -17,6 +18,8 @@ import '../../domain/usecases/engine/engine_usecases.dart';
 import '../../domain/usecases/playlist/playlist_usecases.dart';
 import '../../domain/usecases/recorder/recorder_usecases.dart';
 import '../../domain/usecases/schedule/schedule_usecases.dart';
+import '../../services/background/rem_trigger_service.dart';
+import '../../services/notifications/notification_service.dart';
 
 final sl = GetIt.instance;
 
@@ -81,4 +84,13 @@ Future<void> setupDi() async {
   // ── Use Cases: Recorder ───────────────────────────────────────────────────
   sl.registerFactory(() => const PrepareRecordingPathUseCase());
   sl.registerFactory(() => const DeleteAudioFileUseCase());
+
+  // ── Services ──────────────────────────────────────────────────────────────
+  await NotificationService.init();
+  await NotificationService.requestPermissions();
+
+  await Workmanager().initialize(
+    workManagerCallbackDispatcher,
+    // isInDebugMode: true,
+  );
 }
