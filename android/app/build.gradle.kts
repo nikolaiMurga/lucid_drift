@@ -25,7 +25,7 @@ android {
 
     defaultConfig {
         applicationId = "com.nicolaimurga.lucid_drift"
-        minSdk = flutter.minSdkVersion // Убедись, что minSdk не ниже 21 для корректной работы десугаризации
+        minSdk = 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

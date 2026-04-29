@@ -37,6 +37,9 @@ dependencies:
   # Vibration (MILD trigger)
   vibration: ^2.0.0
 
+  # Timezone (для планирования уведомлений)
+  timezone: ^0.9.4
+
   # Utils
   equatable: ^2.0.5
   freezed_annotation: ^2.4.1
