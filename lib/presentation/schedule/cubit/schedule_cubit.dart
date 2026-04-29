@@ -180,6 +180,16 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     }
   }
 
+  /// Немедленно запускает триггер для тестирования (минуя проверку расписания).
+  Future<void> testTriggerNow() async {
+    final isRunning = await RemTriggerService.isRunning();
+    if (!isRunning) await RemTriggerService.start();
+    // Небольшая пауза чтобы изолят успел инициализировать Isar
+    await Future.delayed(const Duration(seconds: 2));
+    RemTriggerService.testTrigger();
+    debugPrint('[ScheduleCubit] testTriggerNow вызван.');
+  }
+
   Future<void> cancelTrigger() async {
     final s = state;
     if (s is! ScheduleLoaded) return;

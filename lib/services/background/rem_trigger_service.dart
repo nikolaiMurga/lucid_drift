@@ -96,7 +96,7 @@ Future<bool> remServiceOnIosBackground(ServiceInstance service) async {
 
 /// Проверяет расписание и запускает триггер если время совпало.
 Future<void> _checkAndFire(ServiceInstance service, Isar isar) async {
-  final scheduleModel = await isar.sleepScheduleModels.get(0);
+  final scheduleModel = await isar.sleepScheduleModels.get(1);
   if (scheduleModel == null || !scheduleModel.isActive) return;
 
   final schedule = scheduleModel.toDomain();

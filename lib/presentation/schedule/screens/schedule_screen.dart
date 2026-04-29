@@ -294,29 +294,47 @@ class _TriggerActivationCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: isBusy
-                ? const Center(
-                    child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.dream)),
-                  )
-                : isActive
-                ? OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.dream),
-                      foregroundColor: AppColors.dream,
-                    ),
-                    onPressed: () => context.read<ScheduleCubit>().cancelTrigger(),
-                    icon: const Icon(Icons.cancel_outlined, size: 18),
-                    label: const Text('Отменить'),
-                  )
-                : ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.dream, padding: const EdgeInsets.symmetric(vertical: 12)),
-                    onPressed: state.schedule.isActive ? () => context.read<ScheduleCubit>().activateTrigger() : null,
-                    icon: const Icon(Icons.play_arrow, color: AppColors.textPrimary),
-                    label: const Text('Активировать', style: TextStyle(color: AppColors.textPrimary)),
-                  ),
-          ),
+          if (isBusy)
+            const Center(
+              child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.dream)),
+            )
+          else if (isActive)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.dream),
+                  foregroundColor: AppColors.dream,
+                ),
+                onPressed: () => context.read<ScheduleCubit>().cancelTrigger(),
+                icon: const Icon(Icons.cancel_outlined, size: 18),
+                label: const Text('Отменить'),
+              ),
+            )
+          else ...[
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.dream, padding: const EdgeInsets.symmetric(vertical: 12)),
+                onPressed: state.schedule.isActive ? () => context.read<ScheduleCubit>().activateTrigger() : null,
+                icon: const Icon(Icons.play_arrow, color: AppColors.textPrimary),
+                label: const Text('Активировать', style: TextStyle(color: AppColors.textPrimary)),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.textSecondary),
+                  foregroundColor: AppColors.textSecondary,
+                ),
+                onPressed: () => context.read<ScheduleCubit>().testTriggerNow(),
+                icon: const Icon(Icons.science_outlined, size: 18),
+                label: const Text('Тест триггера сейчас'),
+              ),
+            ),
+          ],
         ],
       ),
     );
