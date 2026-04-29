@@ -40,6 +40,9 @@ dependencies:
   # Timezone (для планирования уведомлений)
   timezone: ^0.9.4
 
+  # Key-value storage (очистка устаревших записей уведомлений)
+  shared_preferences: ^2.3.2
+
   # Utils
   equatable: ^2.0.5
   freezed_annotation: ^2.4.1

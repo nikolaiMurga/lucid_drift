@@ -1,6 +1,7 @@
 import 'package:get_it/get_it.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/models/content_item_model.dart';
 import '../../data/models/night_playlist_model.dart';
@@ -69,10 +70,13 @@ Future<void> setupDi() async {
   sl.registerFactory(() => const DeleteAudioFileUseCase());
 
   // ── Services ──────────────────────────────────────────────────────────────
+  // Очищаем устаревшие записи уведомлений из SharedPreferences до инициализации
+  // плагина, чтобы избежать «Missing type parameter» в flutter_local_notifications v17+.
+  // Это происходит когда на устройстве остались записи от предыдущей версии приложения
+  // без поля androidScheduleMode, которое стало обязательным.
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove('flutter_local_notifications_scheduled');
+
   await NotificationService.init();
-  // Сбрасываем все ранее запланированные уведомления при каждом холодном старте,
-  // чтобы стереть устаревшие записи в SharedPreferences, которые вызывают
-  // «Missing type parameter» в flutter_local_notifications v17+.
-  await NotificationService.cancelAll();
   await NotificationService.requestPermissions();
 }
