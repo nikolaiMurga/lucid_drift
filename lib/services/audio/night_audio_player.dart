@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:audio_session/audio_session.dart';
+import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:isar/isar.dart';
 
@@ -34,14 +35,26 @@ class NightAudioPlayer {
   Future<PlaybackResult?> play(Isar isar) async {
     // 1. Читаем плейлист
     final playlistModel = await _loadPlaylist(isar);
-    if (playlistModel == null || playlistModel.entryItemIds.isEmpty) return null;
+    if (playlistModel == null) {
+      debugPrint('[NightAudioPlayer] Плейлист не найден.');
+      return null;
+    }
+    if (playlistModel.entryItemIds.isEmpty) {
+      debugPrint('[NightAudioPlayer] Плейлист пустой (нет треков).');
+      return null;
+    }
+    debugPrint('[NightAudioPlayer] Плейлист загружен: ${playlistModel.entryItemIds.length} треков.');
 
     // 2. Конфигурируем аудио-сессию
     await _configureAudioSession();
 
     // 3. Собираем очередь треков по порядку плейлиста
     final queue = await _buildQueue(isar, playlistModel);
-    if (queue.isEmpty) return null;
+    if (queue.isEmpty) {
+      debugPrint('[NightAudioPlayer] Очередь пуста — у треков нет аудио-файлов.');
+      return null;
+    }
+    debugPrint('[NightAudioPlayer] Очередь собрана: ${queue.length} треков для воспроизведения.');
 
     final startedAt = DateTime.now();
     int affirmationsPlayed = 0;
@@ -53,7 +66,10 @@ class NightAudioPlayer {
       if (_stopped) break;
 
       final file = File(entry.localPath);
-      if (!file.existsSync()) continue;
+      if (!file.existsSync()) {
+        debugPrint('[NightAudioPlayer] Файл не найден: ${entry.localPath}');
+        continue;
+      }
 
       try {
         // Fade-in
@@ -107,9 +123,17 @@ class NightAudioPlayer {
 
   // ── private ───────────────────────────────────────────────────────────────
 
+  /// Загружает плейлист — приоритет у 'main_playlist' (синглтон репозитория),
+  /// затем любой активный, затем первый попавшийся.
   Future<NightPlaylistModel?> _loadPlaylist(Isar isar) async {
+    // Сначала пробуем синглтон по известному id
+    final main = await isar.nightPlaylistModels.get(fastHash('main_playlist'));
+    if (main != null && main.entryItemIds.isNotEmpty) return main;
+
+    // Fallback: любой активный с треками
     final models = await isar.nightPlaylistModels.where().findAll();
-    return models.where((m) => m.isActive).firstOrNull ?? models.firstOrNull;
+    return models.where((m) => m.isActive && m.entryItemIds.isNotEmpty).firstOrNull
+        ?? models.where((m) => m.entryItemIds.isNotEmpty).firstOrNull;
   }
 
   Future<List<_TrackEntry>> _buildQueue(
