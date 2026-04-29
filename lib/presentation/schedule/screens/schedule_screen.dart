@@ -122,8 +122,9 @@ class _ScheduleBody extends StatelessWidget {
         if (!s.isActive) _PausedBanner(),
 
         // Утренний дебриф (если триггер сработал ночью)
-        if (state.todaySession?.wasTriggered == true && state.todaySession?.lucidityLevel == LucidityLevel.none)
-          _DebriefCard(session: state.todaySession!),
+        // TODO: раскомментировать когда дебриф готов
+        // if (state.todaySession?.wasTriggered == true && state.todaySession?.lucidityLevel == LucidityLevel.none)
+        //   _DebriefCard(session: state.todaySession!),
 
         // ── Кнопка активации ──────────────────────────────────────────────
         _TriggerActivationCard(state: state),
