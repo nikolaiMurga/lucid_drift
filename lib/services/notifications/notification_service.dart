@@ -23,12 +23,14 @@ class NotificationService {
     if (_initialized) return;
 
     tz_data.initializeTimeZones();
+    // tz.local остаётся UTC — это не влияет на точность,
+    // так как везде используется tz.TZDateTime.from() через epoch milliseconds.
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
-      requestSoundPermission: false, // не будим звуком
+      requestSoundPermission: false,
     );
 
     await _plugin.initialize(
@@ -52,19 +54,12 @@ class NotificationService {
   }
 
   /// Планирует утреннее уведомление-дебриф
-  /// [triggerAt] — время когда сработал триггер (записываем в текст)
   static Future<void> scheduleMorningDebrief({
     required DateTime wakeTime,
     required DateTime triggerAt,
   }) async {
-    final scheduledDate = tz.TZDateTime(
-      tz.local,
-      wakeTime.year,
-      wakeTime.month,
-      wakeTime.day,
-      wakeTime.hour,
-      wakeTime.minute,
-    );
+    // tz.TZDateTime.from использует millisecondsSinceEpoch — правильно для любой зоны
+    final scheduledDate = tz.TZDateTime.from(wakeTime, tz.local);
 
     final h = triggerAt.hour.toString().padLeft(2, '0');
     final m = triggerAt.minute.toString().padLeft(2, '0');
@@ -109,7 +104,7 @@ class NotificationService {
           NotificationChannels.sleep,
           'Ночной триггер',
           channelDescription: 'Статус воспроизведения аффирмаций',
-          importance: Importance.low,   // тихое, без звука
+          importance: Importance.low,
           priority: Priority.low,
           silent: true,
           ongoing: true,

@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'package:flutter/material.dart' hide TimeOfDay;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 import '../../../domain/entities/sleep_schedule.dart';
 import '../../../domain/entities/sleep_session.dart';
 import '../../../domain/usecases/schedule/schedule_usecases.dart';
 import '../../../domain/usecases/engine/engine_usecases.dart';
+import '../../../services/background/rem_trigger_service.dart';
 import 'schedule_state.dart';
 
 class ScheduleCubit extends Cubit<ScheduleState> {
@@ -16,8 +18,10 @@ class ScheduleCubit extends Cubit<ScheduleState> {
   final CancelTriggerUseCase _cancelTrigger;
   final GetTodaySessionUseCase _getTodaySession;
   final SaveDebriefUseCase _saveDebrief;
+  final WatchSessionsUseCase _watchSessions;
 
-  StreamSubscription<SleepSchedule?>? _sub;
+  StreamSubscription<SleepSchedule?>? _scheduleSub;
+  StreamSubscription<List<SleepSession>>? _sessionSub;
 
   ScheduleCubit({
     required GetSleepScheduleUseCase get,
@@ -28,6 +32,7 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     required CancelTriggerUseCase cancelTrigger,
     required GetTodaySessionUseCase getTodaySession,
     required SaveDebriefUseCase saveDebrief,
+    required WatchSessionsUseCase watchSessions,
   })  : _get = get,
         _save = save,
         _delete = delete,
@@ -36,10 +41,11 @@ class ScheduleCubit extends Cubit<ScheduleState> {
         _cancelTrigger = cancelTrigger,
         _getTodaySession = getTodaySession,
         _saveDebrief = saveDebrief,
+        _watchSessions = watchSessions,
         super(const ScheduleLoading());
 
   void init() {
-    _sub = _get().listen(
+    _scheduleSub = _get().listen(
       (schedule) async {
         if (schedule == null) {
           emit(const ScheduleEmpty());
@@ -49,6 +55,55 @@ class ScheduleCubit extends Cubit<ScheduleState> {
       },
       onError: (e) => emit(ScheduleError(e.toString())),
     );
+
+    // Синхронизируем состояние REM-движка при старте приложения
+    _syncServiceStateOnStart();
+
+    // Обновляем UI когда сервис сохраняет сессию в другом изоляте
+    _sessionSub = _watchSessions().listen((sessions) {
+      final s = state;
+      if (s is! ScheduleLoaded) return;
+
+      final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day);
+      final todayEnd = todayStart.add(const Duration(days: 1));
+
+      final today = sessions
+          .where((sess) =>
+              !sess.date.isBefore(todayStart) && sess.date.isBefore(todayEnd))
+          .firstOrNull;
+
+      if (today == s.todaySession) return;
+
+      final newStatus = (today?.wasTriggered == true)
+          ? TriggerStatus.idle
+          : s.triggerStatus;
+
+      if (!isClosed) {
+        emit(s.copyWith(
+          todaySession: today,
+          triggerStatus: newStatus,
+          clearScheduled: today?.wasTriggered == true,
+        ));
+      }
+    });
+  }
+
+  /// Проверяем состояние сервиса при старте: если расписание активно
+  /// и сервис не запущен — запускаем. Если расписание выключено — останавливаем.
+  Future<void> _syncServiceStateOnStart() async {
+    final schedule = await _get().first;
+    if (schedule == null) return;
+
+    final isRunning = await RemTriggerService.isRunning();
+
+    if (schedule.isActive && !isRunning) {
+      debugPrint('[ScheduleCubit] Start-up sync: запуск REM Engine.');
+      await RemTriggerService.start();
+    } else if (!schedule.isActive && isRunning) {
+      debugPrint('[ScheduleCubit] Start-up sync: остановка REM Engine.');
+      RemTriggerService.stop();
+    }
   }
 
   // ── Создание ──────────────────────────────────────────────────────────────
@@ -104,15 +159,24 @@ class ScheduleCubit extends Cubit<ScheduleState> {
 
     emit(s.copyWith(triggerStatus: TriggerStatus.activating));
 
-    final result = await _activate();
+    try {
+      final result = await _activate();
 
-    if (result.isSuccess) {
-      emit(s.copyWith(
-        triggerStatus: TriggerStatus.active,
-        scheduledTriggerAt: result.triggerAt,
-      ));
-    } else {
-      emit(s.copyWith(triggerStatus: TriggerStatus.idle));
+      if (result.isSuccess) {
+        final triggerAt = result.triggerAt!;
+        debugPrint('[ScheduleCubit] Триггер активирован на $triggerAt');
+        if (!isClosed) {
+          emit(s.copyWith(
+            triggerStatus: TriggerStatus.active,
+            scheduledTriggerAt: triggerAt,
+          ));
+        }
+      } else {
+        if (!isClosed) emit(s.copyWith(triggerStatus: TriggerStatus.idle));
+      }
+    } catch (e) {
+      debugPrint('[ScheduleCubit] activateTrigger error: $e');
+      if (!isClosed) emit(s.copyWith(triggerStatus: TriggerStatus.idle));
     }
   }
 
@@ -122,10 +186,12 @@ class ScheduleCubit extends Cubit<ScheduleState> {
 
     emit(s.copyWith(triggerStatus: TriggerStatus.cancelling));
     await _cancelTrigger();
-    emit(s.copyWith(
-      triggerStatus: TriggerStatus.idle,
-      clearScheduled: true,
-    ));
+    if (!isClosed) {
+      emit(s.copyWith(
+        triggerStatus: TriggerStatus.idle,
+        clearScheduled: true,
+      ));
+    }
   }
 
   // ── Дебриф ────────────────────────────────────────────────────────────────
@@ -153,7 +219,7 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     );
 
     await _saveDebrief(updated);
-    emit(s.copyWith(todaySession: updated));
+    if (!isClosed) emit(s.copyWith(todaySession: updated));
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -163,6 +229,19 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     if (s is! ScheduleLoaded) return;
     final updated = transform(s.schedule);
     await _save(updated);
+
+    // Синхронизируем сервис при изменении isActive
+    final wasActive = s.schedule.isActive;
+    final nowActive = updated.isActive;
+    if (wasActive != nowActive) {
+      if (nowActive) {
+        debugPrint('[ScheduleCubit] isActive → true: запуск REM Engine.');
+        await RemTriggerService.start();
+      } else {
+        debugPrint('[ScheduleCubit] isActive → false: остановка REM Engine.');
+        RemTriggerService.stop();
+      }
+    }
   }
 
   SleepSchedule _rebuild(
@@ -195,23 +274,25 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     final prevStatus = current is ScheduleLoaded
         ? current.triggerStatus
         : TriggerStatus.idle;
-    final prevScheduled = current is ScheduleLoaded
-        ? current.scheduledTriggerAt
-        : null;
+    final prevScheduled =
+        current is ScheduleLoaded ? current.scheduledTriggerAt : null;
 
-    emit(ScheduleLoaded(
-      schedule: schedule,
-      remWindows: windows,
-      triggerAt: trigger,
-      triggerStatus: prevStatus,
-      scheduledTriggerAt: prevScheduled,
-      todaySession: todaySession,
-    ));
+    if (!isClosed) {
+      emit(ScheduleLoaded(
+        schedule: schedule,
+        remWindows: windows,
+        triggerAt: trigger,
+        triggerStatus: prevStatus,
+        scheduledTriggerAt: prevScheduled,
+        todaySession: todaySession,
+      ));
+    }
   }
 
   @override
   Future<void> close() {
-    _sub?.cancel();
+    _scheduleSub?.cancel();
+    _sessionSub?.cancel();
     return super.close();
   }
 }

@@ -24,6 +24,7 @@ class ScheduleScreen extends StatelessWidget {
         cancelTrigger: sl(),
         getTodaySession: sl(),
         saveDebrief: sl(),
+        watchSessions: sl(),
       )..init(),
       child: const _ScheduleView(),
     );
