@@ -4,8 +4,10 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../data/models/content_item_model.dart';
 import '../../data/models/night_playlist_model.dart';
+import '../../data/models/sleep_schedule_model.dart';
 import '../../data/repositories/content_item_repository_impl.dart';
 import '../../data/repositories/playlist_repository_impl.dart';
+import '../../data/repositories/sleep_schedule_repository_impl.dart';
 import '../../domain/repositories/content_item_repository.dart';
 import '../../domain/repositories/repositories.dart';
 import '../../domain/usecases/content/content_usecases.dart';
@@ -19,7 +21,11 @@ Future<void> setupDi() async {
   // --- Isar ---
   final dir = await getApplicationDocumentsDirectory();
   final isar = await Isar.open(
-    [ContentItemModelSchema, NightPlaylistModelSchema],
+    [
+      ContentItemModelSchema,
+      NightPlaylistModelSchema,
+      SleepScheduleModelSchema,
+    ],
     directory: dir.path,
   );
   sl.registerSingleton<Isar>(isar);
@@ -30,6 +36,9 @@ Future<void> setupDi() async {
   );
   sl.registerLazySingleton<PlaylistRepository>(
     () => PlaylistRepositoryImpl(sl()),
+  );
+  sl.registerLazySingleton<SleepScheduleRepository>(
+    () => SleepScheduleRepositoryImpl(sl()),
   );
 
   // --- Use Cases: Content ---
@@ -46,10 +55,13 @@ Future<void> setupDi() async {
   sl.registerFactory(() => ReorderPlaylistUseCase(sl()));
   sl.registerFactory(() => UpdatePlaylistSettingsUseCase(sl()));
 
+  // --- Use Cases: Schedule ---
+  sl.registerFactory(() => GetSleepScheduleUseCase(sl()));
+  sl.registerFactory(() => SaveSleepScheduleUseCase(sl()));
+  sl.registerFactory(() => DeleteSleepScheduleUseCase(sl()));
+  sl.registerFactory(() => const CalculateRemTriggerUseCase());
+
   // --- Use Cases: Recorder ---
   sl.registerFactory(() => const PrepareRecordingPathUseCase());
   sl.registerFactory(() => const DeleteAudioFileUseCase());
-
-  // --- Use Cases: Schedule ---
-  sl.registerFactory(() => const CalculateRemTriggerUseCase());
 }

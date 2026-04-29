@@ -4,23 +4,19 @@ import '../../repositories/repositories.dart';
 class CalculateRemTriggerUseCase {
   const CalculateRemTriggerUseCase();
 
-  /// Возвращает DateTime когда нужно запустить плейлист
-  DateTime call(SleepSchedule schedule, {DateTime? forDate}) {
-    return schedule.triggerDateTime(forDate ?? DateTime.now());
-  }
+  DateTime call(SleepSchedule schedule, {DateTime? forDate}) =>
+      schedule.triggerDateTime(forDate ?? DateTime.now());
 
-  /// Возвращает описание всех REM-окон для визуального таймлайна
   List<RemWindow> allWindows(SleepSchedule schedule, {DateTime? forDate}) {
     final date = forDate ?? DateTime.now();
-    final bedDateTime = DateTime(
+    final bed = DateTime(
       date.year, date.month, date.day,
       schedule.bedTime.hour, schedule.bedTime.minute,
     );
-
     return List.generate(5, (i) {
       final cycle = i + 1;
-      final start = bedDateTime.add(Duration(minutes: 90 * cycle - 20));
-      final end = bedDateTime.add(Duration(minutes: 90 * cycle + 20));
+      final start = bed.add(Duration(minutes: 90 * cycle - 25));
+      final end   = bed.add(Duration(minutes: 90 * cycle + 10));
       return RemWindow(cycle: cycle, start: start, end: end);
     });
   }
@@ -36,13 +32,17 @@ class RemWindow {
 class SaveSleepScheduleUseCase {
   final SleepScheduleRepository _repo;
   const SaveSleepScheduleUseCase(this._repo);
-
   Future<void> call(SleepSchedule schedule) => _repo.save(schedule);
 }
 
 class GetSleepScheduleUseCase {
   final SleepScheduleRepository _repo;
   const GetSleepScheduleUseCase(this._repo);
-
   Stream<SleepSchedule?> call() => _repo.watch();
+}
+
+class DeleteSleepScheduleUseCase {
+  final SleepScheduleRepository _repo;
+  const DeleteSleepScheduleUseCase(this._repo);
+  Future<void> call() => _repo.delete();
 }
