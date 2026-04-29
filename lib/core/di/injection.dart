@@ -91,6 +91,6 @@ Future<void> setupDi() async {
 
   await Workmanager().initialize(
     workManagerCallbackDispatcher,
-    // isInDebugMode: true,
+    isInDebugMode: true,
   );
 }
