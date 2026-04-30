@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
@@ -63,7 +64,12 @@ class TriggerScheduler {
 
   static Future<void> _cancelNotifications() async {
     final plugin = FlutterLocalNotificationsPlugin();
-    await plugin.cancel(88);
-    await plugin.cancel(NotificationIds.morningDebrief);
+    try {
+      // id 88 используется только на iOS как wake-up hint
+      if (Platform.isIOS) await plugin.cancel(88);
+      await plugin.cancel(NotificationIds.morningDebrief);
+    } catch (e) {
+      debugPrint('[TriggerScheduler] _cancelNotifications error (ignored): $e');
+    }
   }
 }

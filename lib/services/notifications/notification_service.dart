@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 
@@ -36,6 +37,10 @@ class NotificationService {
     await _plugin.initialize(
       const InitializationSettings(android: android, iOS: ios),
     );
+
+    // Сбрасываем закешированные уведомления при первом запуске новой версии,
+    // чтобы избежать "Missing type parameter" из-за обфускации R8 в release-билде.
+    await _clearNotificationCacheOnFirstRun();
 
     _initialized = true;
   }
@@ -127,4 +132,18 @@ class NotificationService {
   static Future<void> cancelAll() => _plugin.cancelAll();
 
   static Future<void> cancel(int id) => _plugin.cancel(id);
+
+  /// Очищает SharedPreferences-кэш уведомлений при первом запуске новой версии.
+  /// Обходит плагин напрямую — cancelAll/cancel тоже вызывают loadScheduledNotifications
+  /// и упадут с "Missing type parameter" на битых данных.
+  static Future<void> _clearNotificationCacheOnFirstRun() async {
+    const flagKey = 'lucid_drift_notifications_cache_cleared_v2';
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(flagKey) == true) return;
+
+    // flutter_local_notifications хранит кэш под этим ключом
+    await prefs.remove('scheduled_notifications');
+
+    await prefs.setBool(flagKey, true);
+  }
 }
