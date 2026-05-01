@@ -8,6 +8,7 @@ import 'package:isar/isar.dart';
 import '../../data/models/content_item_model.dart';
 import '../../data/models/night_playlist_model.dart' hide fastHash;
 import '../../domain/entities/night_playlist.dart';
+import '../../domain/entities/sleep_schedule.dart';
 
 /// Результат воспроизведения — передаётся в RemTriggerService для лога
 class PlaybackResult {
@@ -30,9 +31,16 @@ class NightAudioPlayer {
   final AudioPlayer _player = AudioPlayer();
   bool _stopped = false;
 
-  /// Запускает воспроизведение плейлиста.
+  /// Запускает воспроизведение плейлиста в заданном режиме.
   /// Работает в фоновом изоляте — читает Isar напрямую.
-  Future<PlaybackResult?> play(Isar isar) async {
+  ///
+  /// [cycle] — целевой цикл сна (определяет длительность REM).
+  /// [scheduleMode] — fullPhase: петля до конца окна; midPhase3x: ждём середины, потом 3 прохода.
+  Future<PlaybackResult?> play(
+    Isar isar, {
+    required SleepCycle cycle,
+    required SchedulePlaybackMode scheduleMode,
+  }) async {
     // 1. Читаем плейлист
     final playlistModel = await _loadPlaylist(isar);
     if (playlistModel == null) {
@@ -43,65 +51,50 @@ class NightAudioPlayer {
       debugPrint('[NightAudioPlayer] Плейлист пустой (нет треков).');
       return null;
     }
-    debugPrint('[NightAudioPlayer] Плейлист загружен: ${playlistModel.entryItemIds.length} треков.');
+    debugPrint('[NightAudioPlayer] Плейлист загружен: ${playlistModel.entryItemIds.length} треков. '
+        'Режим: $scheduleMode, цикл: $cycle (REM ${cycle.remDurationMinutes} мин).');
 
     // 2. Конфигурируем аудио-сессию
     await _configureAudioSession();
 
-    // 3. Собираем очередь треков по порядку плейлиста
+    // 3. Собираем очередь треков
     final queue = await _buildQueue(isar, playlistModel);
     if (queue.isEmpty) {
       debugPrint('[NightAudioPlayer] Очередь пуста — у треков нет аудио-файлов.');
       return null;
     }
-    debugPrint('[NightAudioPlayer] Очередь собрана: ${queue.length} треков для воспроизведения.');
+    debugPrint('[NightAudioPlayer] Очередь: ${queue.length} треков.');
 
     final startedAt = DateTime.now();
     int affirmationsPlayed = 0;
     int triggersPlayed = 0;
     Duration totalDuration = Duration.zero;
 
-    // 4. Воспроизводим треки по очереди
-    for (final entry in queue) {
-      if (_stopped) break;
-
-      final file = File(entry.localPath);
-      if (!file.existsSync()) {
-        debugPrint('[NightAudioPlayer] Файл не найден: ${entry.localPath}');
-        continue;
-      }
-
-      try {
-        // Fade-in
-        _player.setVolume(0.0);
-        await _player.setFilePath(entry.localPath);
-        await _player.setVolume(entry.volume);
-
-        final duration = _player.duration ?? Duration.zero;
-        _player.play();
-
-        // Ждём окончания трека
-        await _player.playerStateStream.firstWhere(
-          (s) => s.processingState == ProcessingState.completed || _stopped,
-        );
-
-        totalDuration += duration;
-        if (entry.isAffirmation) {
-          affirmationsPlayed++;
-        } else {
-          triggersPlayed++;
+    // 4. Выбираем стратегию воспроизведения
+    switch (scheduleMode) {
+      case SchedulePlaybackMode.fullPhase:
+        // Воспроизводим в цикле всё REM-окно + 10 мин (мягкий фон для аффирмаций)
+        final deadline = startedAt.add(Duration(minutes: cycle.remDurationMinutes + 10));
+        while (!_stopped && DateTime.now().isBefore(deadline)) {
+          final r = await _playQueueOnce(queue, playlistModel);
+          affirmationsPlayed += r.affirmations;
+          triggersPlayed += r.triggers;
+          totalDuration += r.duration;
         }
 
-        // Пауза между треками
-        if (!_stopped && entry != queue.last) {
-          await Future.delayed(
-            Duration(seconds: playlistModel.pauseBetweenSeconds),
-          );
+      case SchedulePlaybackMode.midPhase3x:
+        // Ждём середины REM-окна, затем 3 прохода (точечный сигнал для триггеров)
+        final waitMins = cycle.remDurationMinutes ~/ 2;
+        debugPrint('[NightAudioPlayer] midPhase3x: ждём $waitMins мин до середины REM.');
+        await Future.delayed(Duration(minutes: waitMins));
+        if (_stopped) break;
+        for (int i = 0; i < 3 && !_stopped; i++) {
+          debugPrint('[NightAudioPlayer] midPhase3x: проход ${i + 1}/3.');
+          final r = await _playQueueOnce(queue, playlistModel);
+          affirmationsPlayed += r.affirmations;
+          triggersPlayed += r.triggers;
+          totalDuration += r.duration;
         }
-      } catch (_) {
-        // Пропускаем трек с ошибкой
-        continue;
-      }
     }
 
     await _player.stop();
@@ -122,6 +115,54 @@ class NightAudioPlayer {
   }
 
   // ── private ───────────────────────────────────────────────────────────────
+
+  /// Проигрывает очередь треков один раз и возвращает статистику прохода.
+  Future<_PlayResult> _playQueueOnce(
+    List<_TrackEntry> queue,
+    NightPlaylistModel playlistModel,
+  ) async {
+    int affirmations = 0;
+    int triggers = 0;
+    Duration duration = Duration.zero;
+
+    for (final entry in queue) {
+      if (_stopped) break;
+
+      final file = File(entry.localPath);
+      if (!file.existsSync()) {
+        debugPrint('[NightAudioPlayer] Файл не найден: ${entry.localPath}');
+        continue;
+      }
+
+      try {
+        _player.setVolume(0.0);
+        await _player.setFilePath(entry.localPath);
+        await _player.setVolume(entry.volume);
+
+        final trackDuration = _player.duration ?? Duration.zero;
+        _player.play();
+
+        await _player.playerStateStream.firstWhere(
+          (s) => s.processingState == ProcessingState.completed || _stopped,
+        );
+
+        duration += trackDuration;
+        if (entry.isAffirmation) {
+          affirmations++;
+        } else {
+          triggers++;
+        }
+
+        if (!_stopped && entry != queue.last) {
+          await Future.delayed(Duration(seconds: playlistModel.pauseBetweenSeconds));
+        }
+      } catch (_) {
+        continue;
+      }
+    }
+
+    return _PlayResult(affirmations: affirmations, triggers: triggers, duration: duration);
+  }
 
   /// Загружает плейлист — приоритет у 'main_playlist' (синглтон репозитория),
   /// затем любой активный, затем первый попавшийся.
@@ -199,4 +240,11 @@ class _TrackEntry {
     required this.volume,
     required this.isAffirmation,
   });
+}
+
+class _PlayResult {
+  final int affirmations;
+  final int triggers;
+  final Duration duration;
+  const _PlayResult({required this.affirmations, required this.triggers, required this.duration});
 }

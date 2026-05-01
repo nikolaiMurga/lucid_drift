@@ -12,6 +12,7 @@ import '../../data/models/content_item_model.dart';
 import '../../data/models/night_playlist_model.dart';
 import '../../data/models/sleep_schedule_model.dart';
 import '../../data/models/sleep_session_model.dart';
+import '../../domain/entities/sleep_schedule.dart';
 import '../../domain/entities/sleep_session.dart';
 import '../audio/night_audio_player.dart';
 import '../notifications/notification_service.dart';
@@ -48,7 +49,9 @@ void remServiceOnStart(ServiceInstance service) async {
   service.on(RemServiceCommands.testTrigger).listen((_) async {
     debugPrint('[REM Service] Получена команда testTrigger.');
     if (isar == null || !isar.isOpen) return;
-    currentPlayer = await _fireSequence(service, isar);
+    final model = await isar.sleepScheduleModels.get(1);
+    if (model == null) return;
+    currentPlayer = await _fireSequence(service, isar, model.toDomain());
   });
 
   // ── Android: переключение foreground / background ──────────────────────
@@ -107,34 +110,35 @@ Future<void> _checkAndFire(ServiceInstance service, Isar isar) async {
       ? now.subtract(const Duration(days: 1))
       : now;
 
-  final triggerTime = schedule.triggerDateTime(sleepDate);
+  // Ищем цикл, чьё время совпадает с текущей минутой
+  SleepCycle? matchingCycle;
+  for (final cycle in schedule.targetCycles) {
+    final offset = switch (schedule.playbackMode) {
+      SchedulePlaybackMode.fullPhase  => -10,
+      SchedulePlaybackMode.midPhase3x => 0,
+    };
+    final bed = DateTime(sleepDate.year, sleepDate.month, sleepDate.day,
+        schedule.bedTime.hour, schedule.bedTime.minute);
+    final triggerTime = bed.add(Duration(minutes: cycle.minutesFromBed + offset));
 
-  final matches = now.year  == triggerTime.year  &&
-                  now.month == triggerTime.month &&
-                  now.day   == triggerTime.day   &&
-                  now.hour  == triggerTime.hour  &&
-                  now.minute == triggerTime.minute;
-
-  if (!matches) return;
-
-  // Anti-spam: уже срабатывало сегодня?
-  final todayStart = DateTime(now.year, now.month, now.day);
-  final existing = await isar.sleepSessionModels
-      .filter()
-      .dateGreaterThan(todayStart, include: true)
-      .findFirst();
-
-  if (existing?.triggeredAt != null) {
-    debugPrint('[REM Service] Триггер уже сработал сегодня — пропуск.');
-    return;
+    if (now.year  == triggerTime.year  &&
+        now.month == triggerTime.month &&
+        now.day   == triggerTime.day   &&
+        now.hour  == triggerTime.hour  &&
+        now.minute == triggerTime.minute) {
+      matchingCycle = cycle;
+      break;
+    }
   }
 
-  debugPrint('[REM Service] !!! ТРИГГЕР СОВПАЛ !!! Запускаем последовательность.');
-  await _fireSequence(service, isar);
+  if (matchingCycle == null) return;
+
+  debugPrint('[REM Service] !!! ТРИГГЕР СОВПАЛ (цикл ${matchingCycle.index + 1}) !!! Запускаем последовательность.');
+  await _fireSequence(service, isar, schedule, matchingCycle);
 }
 
 /// Запускает аудио-последовательность и сохраняет сессию в Isar.
-Future<NightAudioPlayer?> _fireSequence(ServiceInstance service, Isar isar) async {
+Future<NightAudioPlayer?> _fireSequence(ServiceInstance service, Isar isar, SleepSchedule schedule, [SleepCycle? cycle]) async {
   final firedAt = DateTime.now();
 
   // 1. Уведомление о начале
@@ -156,9 +160,13 @@ Future<NightAudioPlayer?> _fireSequence(ServiceInstance service, Isar isar) asyn
     'content': 'Воспроизведение аффирмаций...',
   });
 
-  // 4. Воспроизводим плейлист
+  // 4. Воспроизводим плейлист в нужном режиме
   final player = NightAudioPlayer();
-  final result = await player.play(isar);
+  final result = await player.play(
+    isar,
+    cycle: cycle ?? schedule.targetCycles.first,
+    scheduleMode: schedule.playbackMode,
+  );
 
   // 5. Убираем уведомление о воспроизведении
   await NotificationService.cancel(NotificationIds.triggerFired);

@@ -1,17 +1,46 @@
 import 'package:equatable/equatable.dart';
 
-enum RemCycle {
-  second,  // ~3ч после засыпания
-  third,   // ~4.5ч
-  fourth,  // ~6ч  — оптимально (самый длинный REM)
-  fifth,   // ~7.5ч
+/// Цикл сна: 5 циклов по ~90 мин. Первые три — фаза аффирмаций, 4–5 — триггеры.
+enum SleepCycle {
+  first,   // ~1.5ч — аффирмации
+  second,  // ~3ч   — аффирмации
+  third,   // ~4.5ч — аффирмации (граница)
+  fourth,  // ~6ч   — триггеры (оптимально)
+  fifth,   // ~7.5ч — триггеры
+}
+
+extension SleepCycleExt on SleepCycle {
+  /// Фаза подходит для аффирмаций (длинный NREM, мозг лучше усваивает)
+  bool get isAffirmationPhase => index <= 2;
+
+  /// Фаза подходит для триггеров осознанности (длинный REM, мозг близок к пробуждению)
+  bool get isTriggerPhase => index >= 3;
+
+  /// Минут от засыпания до начала REM-окна этого цикла
+  int get minutesFromBed => (index + 1) * 90;
+
+  /// Научная длительность REM в этом цикле
+  int get remDurationMinutes => switch (this) {
+    SleepCycle.first  => 5,
+    SleepCycle.second => 10,
+    SleepCycle.third  => 20,
+    SleepCycle.fourth => 35,
+    SleepCycle.fifth  => 45,
+  };
+}
+
+/// Режим воспроизведения плейлиста во время REM-окна.
+enum SchedulePlaybackMode {
+  fullPhase,   // вся фаза ±10 мин: тихий фон, подходит для аффирмаций
+  midPhase3x,  // середина фазы, 3 прохода: точечный сигнал, подходит для триггеров
 }
 
 class SleepSchedule extends Equatable {
   final String id;
   final TimeOfDay bedTime;
   final TimeOfDay wakeTime;
-  final RemCycle targetCycle;
+  final List<SleepCycle> targetCycles;
+  final SchedulePlaybackMode playbackMode;
   final bool isActive;
   final List<int> activeDays; // 1=пн, 7=вс
   final bool wbtbMode;        // Wake Back To Bed
@@ -22,28 +51,44 @@ class SleepSchedule extends Equatable {
     required this.bedTime,
     required this.wakeTime,
     required this.activeDays,
-    this.targetCycle = RemCycle.fourth,
+    this.targetCycles = const [SleepCycle.fourth],
+    this.playbackMode = SchedulePlaybackMode.fullPhase,
     this.isActive = true,
     this.wbtbMode = false,
     this.wbtbAwakeMins = 30,
   });
 
-  /// Рассчитывает DateTime триггера для заданной даты
+  /// Рассчитывает DateTime первого (ближайшего) триггера для заданной даты.
+  /// Используется для отображения в UI.
   DateTime triggerDateTime(DateTime sleepDate) {
-    final cycleMinutes = switch (targetCycle) {
-      RemCycle.second => 180,
-      RemCycle.third  => 270,
-      RemCycle.fourth => 360,
-      RemCycle.fifth  => 450,
+    final offset = switch (playbackMode) {
+      SchedulePlaybackMode.fullPhase  => -10,
+      SchedulePlaybackMode.midPhase3x => 0,
     };
-
+    final earliest = targetCycles.reduce((a, b) => a.index < b.index ? a : b);
     return DateTime(
       sleepDate.year,
       sleepDate.month,
       sleepDate.day,
       bedTime.hour,
       bedTime.minute,
-    ).add(Duration(minutes: cycleMinutes - 10)); // запуск чуть раньше REM
+    ).add(Duration(minutes: earliest.minutesFromBed + offset));
+  }
+
+  /// Возвращает все DateTime триггеров для каждого выбранного цикла.
+  /// Используется в фоновом сервисе для проверки совпадения по времени.
+  List<DateTime> triggerDateTimes(DateTime sleepDate) {
+    final offset = switch (playbackMode) {
+      SchedulePlaybackMode.fullPhase  => -10,
+      SchedulePlaybackMode.midPhase3x => 0,
+    };
+    final bed = DateTime(
+      sleepDate.year, sleepDate.month, sleepDate.day,
+      bedTime.hour, bedTime.minute,
+    );
+    return targetCycles
+        .map((c) => bed.add(Duration(minutes: c.minutesFromBed + offset)))
+        .toList();
   }
 
   bool get isActiveToday {
@@ -52,7 +97,7 @@ class SleepSchedule extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, bedTime, wakeTime, targetCycle, isActive, activeDays, wbtbMode];
+  List<Object?> get props => [id, bedTime, wakeTime, targetCycles, playbackMode, isActive, activeDays, wbtbMode];
 }
 
 // Простой value object чтобы не тащить material в domain

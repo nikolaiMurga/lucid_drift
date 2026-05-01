@@ -11,24 +11,33 @@ class SleepScheduleModel {
   late int bedTimeMinute;
   late int wakeTimeHour;
   late int wakeTimeMinute;
-  late int targetCycleIndex;
+  late List<int> targetCycleIndices;
+  late int playbackModeIndex;
   late bool isActive;
   late List<int> activeDays;
   late bool wbtbMode;
   late int wbtbAwakeMins;
   late String id;
 
+  /// Преобразует Isar-запись в доменную сущность.
   SleepSchedule toDomain() => SleepSchedule(
         id: id,
         bedTime: TimeOfDay(hour: bedTimeHour, minute: bedTimeMinute),
         wakeTime: TimeOfDay(hour: wakeTimeHour, minute: wakeTimeMinute),
-        targetCycle: RemCycle.values[targetCycleIndex],
+        targetCycles: () {
+          final cycles = targetCycleIndices
+              .map((i) => SleepCycle.values[i.clamp(0, SleepCycle.values.length - 1)])
+              .toList();
+          return cycles.isEmpty ? [SleepCycle.fourth] : cycles;
+        }(),
+        playbackMode: SchedulePlaybackMode.values[playbackModeIndex.clamp(0, SchedulePlaybackMode.values.length - 1)],
         isActive: isActive,
         activeDays: activeDays,
         wbtbMode: wbtbMode,
         wbtbAwakeMins: wbtbAwakeMins,
       );
 
+  /// Создаёт Isar-запись из доменной сущности.
   static SleepScheduleModel fromDomain(SleepSchedule s) =>
       SleepScheduleModel()
         ..id = s.id
@@ -36,7 +45,8 @@ class SleepScheduleModel {
         ..bedTimeMinute = s.bedTime.minute
         ..wakeTimeHour = s.wakeTime.hour
         ..wakeTimeMinute = s.wakeTime.minute
-        ..targetCycleIndex = s.targetCycle.index
+        ..targetCycleIndices = s.targetCycles.map((c) => c.index).toList()
+        ..playbackModeIndex = s.playbackMode.index
         ..isActive = s.isActive
         ..activeDays = s.activeDays
         ..wbtbMode = s.wbtbMode

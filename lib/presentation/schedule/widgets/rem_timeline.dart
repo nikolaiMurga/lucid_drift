@@ -6,13 +6,11 @@ import '../../../domain/usecases/schedule/schedule_usecases.dart';
 class RemTimeline extends StatelessWidget {
   final SleepSchedule schedule;
   final List<RemWindow> remWindows;
-  final DateTime triggerAt;
 
   const RemTimeline({
     super.key,
     required this.schedule,
     required this.remWindows,
-    required this.triggerAt,
   });
 
   @override
@@ -86,7 +84,18 @@ class RemTimeline extends StatelessWidget {
                       final endMins = w.end.difference(bed).inMinutes;
                       final left = (startMins / totalMins * width).clamp(0.0, width);
                       final right = width - (endMins / totalMins * width).clamp(0.0, width);
-                      final isTarget = w.cycle == schedule.targetCycle.index + 2;
+
+                      final matchingCycle = schedule.targetCycles
+                          .where((c) => c.index + 1 == w.cycle)
+                          .firstOrNull;
+                      final isSelected = matchingCycle != null;
+                      final isAffirmation = matchingCycle?.isAffirmationPhase ?? false;
+
+                      final Color blockColor = isSelected
+                          ? (isAffirmation
+                              ? AppColors.dream.withValues(alpha: 0.85)
+                              : AppColors.teal.withValues(alpha: 0.85))
+                          : AppColors.textTertiary.withValues(alpha: 0.3);
 
                       return Positioned(
                         left: left,
@@ -95,33 +104,8 @@ class RemTimeline extends StatelessWidget {
                         height: 24,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: isTarget
-                                ? AppColors.dream.withValues(alpha: 0.8)
-                                : AppColors.dream.withValues(alpha: 0.25),
+                            color: blockColor,
                             borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: isTarget
-                              ? const Center(
-                                  child: Icon(Icons.stars,
-                                      size: 12, color: AppColors.textPrimary),
-                                )
-                              : null,
-                        ),
-                      );
-                    }),
-
-                    // Метка триггера
-                    Builder(builder: (context) {
-                      final trigMins = triggerAt.difference(bed).inMinutes;
-                      final trigX = (trigMins / totalMins * width).clamp(4.0, width - 4);
-                      return Positioned(
-                        left: trigX - 4,
-                        top: 8,
-                        child: Container(
-                          width: 8, height: 32,
-                          decoration: BoxDecoration(
-                            color: AppColors.warm,
-                            borderRadius: BorderRadius.circular(4),
                           ),
                         ),
                       );
@@ -151,11 +135,11 @@ class RemTimeline extends StatelessWidget {
           // Легенда
           Row(
             children: [
-              _LegendItem(color: AppColors.dream.withValues(alpha: 0.25), label: 'REM'),
+              _LegendItem(color: AppColors.textTertiary.withValues(alpha: 0.3), label: 'REM'),
               const SizedBox(width: 12),
-              const _LegendItem(color: AppColors.dream, label: 'Целевой REM'),
+              const _LegendItem(color: AppColors.dream, label: 'Аффирмации'),
               const SizedBox(width: 12),
-              const _LegendItem(color: AppColors.warm, label: 'Триггер'),
+              const _LegendItem(color: AppColors.teal, label: 'Триггеры'),
             ],
           ),
         ],

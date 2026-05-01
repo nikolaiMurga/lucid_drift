@@ -43,28 +43,33 @@ const SleepScheduleModelSchema = CollectionSchema(
       name: r'isActive',
       type: IsarType.bool,
     ),
-    r'targetCycleIndex': PropertySchema(
+    r'playbackModeIndex': PropertySchema(
       id: 5,
-      name: r'targetCycleIndex',
+      name: r'playbackModeIndex',
       type: IsarType.long,
     ),
-    r'wakeTimeHour': PropertySchema(
+    r'targetCycleIndices': PropertySchema(
       id: 6,
+      name: r'targetCycleIndices',
+      type: IsarType.longList,
+    ),
+    r'wakeTimeHour': PropertySchema(
+      id: 7,
       name: r'wakeTimeHour',
       type: IsarType.long,
     ),
     r'wakeTimeMinute': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'wakeTimeMinute',
       type: IsarType.long,
     ),
     r'wbtbAwakeMins': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'wbtbAwakeMins',
       type: IsarType.long,
     ),
     r'wbtbMode': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'wbtbMode',
       type: IsarType.bool,
     )
@@ -91,6 +96,7 @@ int _sleepScheduleModelEstimateSize(
   var bytesCount = offsets.last;
   bytesCount += 3 + object.activeDays.length * 8;
   bytesCount += 3 + object.id.length * 3;
+  bytesCount += 3 + object.targetCycleIndices.length * 8;
   return bytesCount;
 }
 
@@ -105,11 +111,12 @@ void _sleepScheduleModelSerialize(
   writer.writeLong(offsets[2], object.bedTimeMinute);
   writer.writeString(offsets[3], object.id);
   writer.writeBool(offsets[4], object.isActive);
-  writer.writeLong(offsets[5], object.targetCycleIndex);
-  writer.writeLong(offsets[6], object.wakeTimeHour);
-  writer.writeLong(offsets[7], object.wakeTimeMinute);
-  writer.writeLong(offsets[8], object.wbtbAwakeMins);
-  writer.writeBool(offsets[9], object.wbtbMode);
+  writer.writeLong(offsets[5], object.playbackModeIndex);
+  writer.writeLongList(offsets[6], object.targetCycleIndices);
+  writer.writeLong(offsets[7], object.wakeTimeHour);
+  writer.writeLong(offsets[8], object.wakeTimeMinute);
+  writer.writeLong(offsets[9], object.wbtbAwakeMins);
+  writer.writeBool(offsets[10], object.wbtbMode);
 }
 
 SleepScheduleModel _sleepScheduleModelDeserialize(
@@ -124,11 +131,12 @@ SleepScheduleModel _sleepScheduleModelDeserialize(
   object.bedTimeMinute = reader.readLong(offsets[2]);
   object.id = reader.readString(offsets[3]);
   object.isActive = reader.readBool(offsets[4]);
-  object.targetCycleIndex = reader.readLong(offsets[5]);
-  object.wakeTimeHour = reader.readLong(offsets[6]);
-  object.wakeTimeMinute = reader.readLong(offsets[7]);
-  object.wbtbAwakeMins = reader.readLong(offsets[8]);
-  object.wbtbMode = reader.readBool(offsets[9]);
+  object.playbackModeIndex = reader.readLong(offsets[5]);
+  object.targetCycleIndices = reader.readLongList(offsets[6]) ?? [];
+  object.wakeTimeHour = reader.readLong(offsets[7]);
+  object.wakeTimeMinute = reader.readLong(offsets[8]);
+  object.wbtbAwakeMins = reader.readLong(offsets[9]);
+  object.wbtbMode = reader.readBool(offsets[10]);
   return object;
 }
 
@@ -152,12 +160,14 @@ P _sleepScheduleModelDeserializeProp<P>(
     case 5:
       return (reader.readLong(offset)) as P;
     case 6:
-      return (reader.readLong(offset)) as P;
+      return (reader.readLongList(offset) ?? []) as P;
     case 7:
       return (reader.readLong(offset)) as P;
     case 8:
       return (reader.readLong(offset)) as P;
     case 9:
+      return (reader.readLong(offset)) as P;
+    case 10:
       return (reader.readBool(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -719,45 +729,45 @@ extension SleepScheduleModelQueryFilter
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
-      targetCycleIndexEqualTo(int value) {
+      playbackModeIndexEqualTo(int value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'targetCycleIndex',
+        property: r'playbackModeIndex',
         value: value,
       ));
     });
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
-      targetCycleIndexGreaterThan(
+      playbackModeIndexGreaterThan(
     int value, {
     bool include = false,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         include: include,
-        property: r'targetCycleIndex',
+        property: r'playbackModeIndex',
         value: value,
       ));
     });
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
-      targetCycleIndexLessThan(
+      playbackModeIndexLessThan(
     int value, {
     bool include = false,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.lessThan(
         include: include,
-        property: r'targetCycleIndex',
+        property: r'playbackModeIndex',
         value: value,
       ));
     });
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
-      targetCycleIndexBetween(
+      playbackModeIndexBetween(
     int lower,
     int upper, {
     bool includeLower = true,
@@ -765,12 +775,157 @@ extension SleepScheduleModelQueryFilter
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
-        property: r'targetCycleIndex',
+        property: r'playbackModeIndex',
         lower: lower,
         includeLower: includeLower,
         upper: upper,
         includeUpper: includeUpper,
       ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      targetCycleIndicesElementEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'targetCycleIndices',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      targetCycleIndicesElementGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'targetCycleIndices',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      targetCycleIndicesElementLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'targetCycleIndices',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      targetCycleIndicesElementBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'targetCycleIndices',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      targetCycleIndicesLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'targetCycleIndices',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      targetCycleIndicesIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'targetCycleIndices',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      targetCycleIndicesIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'targetCycleIndices',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      targetCycleIndicesLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'targetCycleIndices',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      targetCycleIndicesLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'targetCycleIndices',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      targetCycleIndicesLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'targetCycleIndices',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
     });
   }
 
@@ -1018,16 +1173,16 @@ extension SleepScheduleModelQuerySortBy
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
-      sortByTargetCycleIndex() {
+      sortByPlaybackModeIndex() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'targetCycleIndex', Sort.asc);
+      return query.addSortBy(r'playbackModeIndex', Sort.asc);
     });
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
-      sortByTargetCycleIndexDesc() {
+      sortByPlaybackModeIndexDesc() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'targetCycleIndex', Sort.desc);
+      return query.addSortBy(r'playbackModeIndex', Sort.desc);
     });
   }
 
@@ -1161,16 +1316,16 @@ extension SleepScheduleModelQuerySortThenBy
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
-      thenByTargetCycleIndex() {
+      thenByPlaybackModeIndex() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'targetCycleIndex', Sort.asc);
+      return query.addSortBy(r'playbackModeIndex', Sort.asc);
     });
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
-      thenByTargetCycleIndexDesc() {
+      thenByPlaybackModeIndexDesc() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'targetCycleIndex', Sort.desc);
+      return query.addSortBy(r'playbackModeIndex', Sort.desc);
     });
   }
 
@@ -1269,9 +1424,16 @@ extension SleepScheduleModelQueryWhereDistinct
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QDistinct>
-      distinctByTargetCycleIndex() {
+      distinctByPlaybackModeIndex() {
     return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'targetCycleIndex');
+      return query.addDistinctBy(r'playbackModeIndex');
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QDistinct>
+      distinctByTargetCycleIndices() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'targetCycleIndices');
     });
   }
 
@@ -1346,9 +1508,16 @@ extension SleepScheduleModelQueryProperty
   }
 
   QueryBuilder<SleepScheduleModel, int, QQueryOperations>
-      targetCycleIndexProperty() {
+      playbackModeIndexProperty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addPropertyName(r'targetCycleIndex');
+      return query.addPropertyName(r'playbackModeIndex');
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, List<int>, QQueryOperations>
+      targetCycleIndicesProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'targetCycleIndices');
     });
   }
 

@@ -161,7 +161,7 @@ class _ScheduleBody extends StatelessWidget {
         // ── Таймлайн ──────────────────────────────────────────────────────
         const _SectionLabel('Фазы сна'),
         const SizedBox(height: 8),
-        RemTimeline(schedule: s, remWindows: state.remWindows, triggerAt: state.triggerAt),
+        RemTimeline(schedule: s, remWindows: state.remWindows),
         const SizedBox(height: 20),
 
         // ── Цикл ──────────────────────────────────────────────────────────
@@ -169,7 +169,13 @@ class _ScheduleBody extends StatelessWidget {
         const SizedBox(height: 4),
         Text('Триггер: ${_fmtDt(state.triggerAt)}', style: const TextStyle(fontSize: 12, color: AppColors.teal)),
         const SizedBox(height: 10),
-        _CycleSelector(selected: s.targetCycle, bedTime: s.bedTime, onChanged: (c) => context.read<ScheduleCubit>().updateTargetCycle(c)),
+        _CycleSelector(selected: s.targetCycles, bedTime: s.bedTime, onToggle: (c) => context.read<ScheduleCubit>().toggleTargetCycle(c)),
+        const SizedBox(height: 16),
+
+        // ── Режим воспроизведения ─────────────────────────────────────────
+        const _SectionLabel('Режим воспроизведения'),
+        const SizedBox(height: 8),
+        _PlaybackModeSelector(selected: s.playbackMode, onChanged: (m) => context.read<ScheduleCubit>().updatePlaybackMode(m)),
         const SizedBox(height: 20),
 
         // ── Дни ───────────────────────────────────────────────────────────
@@ -552,53 +558,164 @@ class _TimeCard extends StatelessWidget {
 }
 
 class _CycleSelector extends StatelessWidget {
-  final RemCycle selected;
+  final List<SleepCycle> selected;
   final TimeOfDay bedTime;
-  final ValueChanged<RemCycle> onChanged;
+  final ValueChanged<SleepCycle> onToggle;
 
-  const _CycleSelector({required this.selected, required this.bedTime, required this.onChanged});
+  const _CycleSelector({required this.selected, required this.bedTime, required this.onToggle});
 
+  /// Строит колонку: ряд кнопок циклов с разделителем + легенда цветов.
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: RemCycle.values.map((cycle) {
-        final mins = switch (cycle) {
-          RemCycle.second => 180,
-          RemCycle.third => 270,
-          RemCycle.fourth => 360,
-          RemCycle.fifth => 450,
-        };
-        final totalMins = bedTime.hour * 60 + bedTime.minute + mins;
-        final h = (totalMins ~/ 60) % 24;
-        final m = totalMins % 60;
-        final timeLabel = '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
-        final cycleNum = cycle.index + 2;
-        final isSelected = selected == cycle;
-
-        return Expanded(
-          child: GestureDetector(
-            onTap: () => onChanged(cycle),
-            child: Container(
-              margin: const EdgeInsets.only(right: 6),
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.dream.withValues(alpha: 0.15) : AppColors.surface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: isSelected ? AppColors.dream : AppColors.border),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            // Фазы аффирмаций (1–3)
+            ...SleepCycle.values.where((c) => c.isAffirmationPhase).map((cycle) => _buildChip(cycle, onToggle)),
+            // Визуальный разделитель между аффирмациями и триггерами
+            Container(
+              width: 1,
+              height: 48,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              color: AppColors.border,
+            ),
+            // Фазы триггеров (4–5)
+            ...SleepCycle.values.where((c) => c.isTriggerPhase).map((cycle) => _buildChip(cycle, onToggle)),
+          ],
+        ),
+        const Padding(
+          padding: EdgeInsets.only(top: 6),
+          child: Row(
+            children: [
+              Icon(Icons.star_outline, size: 10, color: AppColors.dream),
+              Padding(
+                padding: EdgeInsets.only(left: 4),
+                child: Text('Аффирмации', style: TextStyle(fontSize: 10, color: AppColors.dream)),
               ),
-              child: Column(
-                children: [
-                  Text(
-                    '$cycleNum',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: material.FontWeight.w300,
-                      color: isSelected ? AppColors.dream : AppColors.textSecondary,
+              Padding(
+                padding: EdgeInsets.only(left: 16),
+                child: Icon(Icons.psychology_outlined, size: 10, color: AppColors.teal),
+              ),
+              Padding(
+                padding: EdgeInsets.only(left: 4),
+                child: Text('Триггеры', style: TextStyle(fontSize: 10, color: AppColors.teal)),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Строит одну кнопку цикла с номером и временем.
+  Widget _buildChip(SleepCycle cycle, ValueChanged<SleepCycle> onToggle) {
+    final isSelected = selected.contains(cycle);
+    final isAffirmation = cycle.isAffirmationPhase;
+    final activeColor = isAffirmation ? AppColors.dream : AppColors.teal;
+
+    final totalMins = bedTime.hour * 60 + bedTime.minute + cycle.minutesFromBed;
+    final h = (totalMins ~/ 60) % 24;
+    final m = totalMins % 60;
+    final timeLabel = '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+    final cycleNum = cycle.index + 1;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onToggle(cycle),
+        child: Container(
+          margin: const EdgeInsets.only(right: 4),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? activeColor.withValues(alpha: 0.15) : AppColors.surface,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: isSelected ? activeColor : AppColors.border),
+          ),
+          child: Column(
+            children: [
+              Text(
+                '$cycleNum',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: material.FontWeight.w300,
+                  color: isSelected ? activeColor : AppColors.textSecondary,
+                ),
+              ),
+              Text(
+                timeLabel,
+                style: TextStyle(fontSize: 10, color: isSelected ? activeColor : AppColors.textTertiary),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PlaybackModeSelector extends StatelessWidget {
+  final SchedulePlaybackMode selected;
+  final ValueChanged<SchedulePlaybackMode> onChanged;
+
+  const _PlaybackModeSelector({required this.selected, required this.onChanged});
+
+  /// Строит список карточек выбора режима воспроизведения.
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: SchedulePlaybackMode.values.map((mode) {
+        final isSelected = selected == mode;
+        final label = switch (mode) {
+          SchedulePlaybackMode.fullPhase  => 'Вся фаза ±10 мин',
+          SchedulePlaybackMode.midPhase3x => 'Середина фазы × 3',
+        };
+        final sublabel = switch (mode) {
+          SchedulePlaybackMode.fullPhase  => 'Тихий фон на всё REM-окно — оптимально для аффирмаций',
+          SchedulePlaybackMode.midPhase3x => 'Точечный сигнал в пик REM — оптимально для триггеров',
+        };
+        final icon = switch (mode) {
+          SchedulePlaybackMode.fullPhase  => Icons.waves_outlined,
+          SchedulePlaybackMode.midPhase3x => Icons.flash_on_outlined,
+        };
+
+        return GestureDetector(
+          onTap: () => onChanged(mode),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.dream.withValues(alpha: 0.1) : AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: isSelected ? AppColors.dream.withValues(alpha: 0.5) : AppColors.border),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: isSelected ? AppColors.dream : AppColors.textTertiary),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: material.FontWeight.w500,
+                            color: isSelected ? AppColors.dream : AppColors.textPrimary,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(sublabel, style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                        ),
+                      ],
                     ),
                   ),
-                  Text(timeLabel, style: TextStyle(fontSize: 10, color: isSelected ? AppColors.dream : AppColors.textTertiary)),
-                ],
-              ),
+                ),
+                if (isSelected) const Icon(Icons.check_circle_outline, size: 16, color: AppColors.dream),
+              ],
             ),
           ),
         );

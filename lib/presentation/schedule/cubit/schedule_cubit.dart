@@ -127,8 +127,21 @@ class ScheduleCubit extends Cubit<ScheduleState> {
   Future<void> updateWakeTime(TimeOfDay time) =>
       _update((s) => _rebuild(s, wakeTime: time));
 
-  Future<void> updateTargetCycle(RemCycle cycle) =>
-      _update((s) => _rebuild(s, targetCycle: cycle));
+  /// Добавляет или убирает цикл из списка целевых (минимум 1 всегда остаётся).
+  Future<void> toggleTargetCycle(SleepCycle cycle) => _update((s) {
+        final cycles = List<SleepCycle>.from(s.targetCycles);
+        if (cycles.contains(cycle)) {
+          if (cycles.length > 1) cycles.remove(cycle);
+        } else {
+          cycles.add(cycle);
+          cycles.sort((a, b) => a.index.compareTo(b.index));
+        }
+        return _rebuild(s, targetCycles: cycles);
+      });
+
+  /// Обновляет режим воспроизведения (вся фаза / середина ×3).
+  Future<void> updatePlaybackMode(SchedulePlaybackMode mode) =>
+      _update((s) => _rebuild(s, playbackMode: mode));
 
   Future<void> toggleDay(int weekday) => _update((s) {
         final days = List<int>.from(s.activeDays);
@@ -258,7 +271,8 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     SleepSchedule s, {
     TimeOfDay? bedTime,
     TimeOfDay? wakeTime,
-    RemCycle? targetCycle,
+    List<SleepCycle>? targetCycles,
+    SchedulePlaybackMode? playbackMode,
     bool? isActive,
     List<int>? activeDays,
     bool? wbtbMode,
@@ -268,7 +282,8 @@ class ScheduleCubit extends Cubit<ScheduleState> {
         id: s.id,
         bedTime: bedTime ?? s.bedTime,
         wakeTime: wakeTime ?? s.wakeTime,
-        targetCycle: targetCycle ?? s.targetCycle,
+        targetCycles: targetCycles ?? s.targetCycles,
+        playbackMode: playbackMode ?? s.playbackMode,
         isActive: isActive ?? s.isActive,
         activeDays: activeDays ?? s.activeDays,
         wbtbMode: wbtbMode ?? s.wbtbMode,
