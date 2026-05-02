@@ -113,7 +113,7 @@ Future<void> _checkAndFire(ServiceInstance service, Isar isar) async {
   // Ищем цикл, чьё время совпадает с текущей минутой
   SleepCycle? matchingCycle;
   for (final cycle in schedule.targetCycles) {
-    final offset = switch (schedule.playbackMode) {
+    final offset = switch (schedule.modeForCycle(cycle)) {
       SchedulePlaybackMode.fullPhase  => -10,
       SchedulePlaybackMode.midPhase3x => 0,
     };
@@ -161,11 +161,12 @@ Future<NightAudioPlayer?> _fireSequence(ServiceInstance service, Isar isar, Slee
   });
 
   // 4. Воспроизводим плейлист в нужном режиме
+  final effectiveCycle = cycle ?? schedule.targetCycles.first;
   final player = NightAudioPlayer();
   final result = await player.play(
     isar,
-    cycle: cycle ?? schedule.targetCycles.first,
-    scheduleMode: schedule.playbackMode,
+    cycle: effectiveCycle,
+    scheduleMode: schedule.modeForCycle(effectiveCycle),
   );
 
   // 5. Убираем уведомление о воспроизведении

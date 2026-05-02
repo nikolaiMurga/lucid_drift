@@ -8,7 +8,7 @@ abstract final class AppColors {
 
   static const dream        = Color(0xFF7C5CBF);
   static const dreamLight   = Color(0xFFB8A0E8);
-  static const teal         = Color(0xFF2EC4A0);
+  // static const lucid         = Color(0xFF2EC4A0);
   static const warm         = Color(0xFFF5A06E);
 
   static const textPrimary   = Color(0xFFEEEAF8);
@@ -26,7 +26,7 @@ final appTheme = ThemeData(
   scaffoldBackgroundColor: AppColors.background,
   colorScheme: const ColorScheme.dark(
     primary:    AppColors.dream,
-    secondary:  AppColors.teal,
+    secondary:  AppColors.lucid,
     surface:    AppColors.surface,
     onPrimary:  AppColors.textPrimary,
     onSurface:  AppColors.textPrimary,

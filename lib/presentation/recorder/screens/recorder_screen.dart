@@ -90,7 +90,7 @@ class _RecorderViewState extends State<_RecorderView> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Запись сохранена'),
-              backgroundColor: AppColors.teal,
+              backgroundColor: AppColors.lucid,
               duration: Duration(seconds: 2),
             ),
           );
@@ -380,7 +380,7 @@ class _Waveform extends StatelessWidget {
           color: isRecording
               ? AppColors.dream
               : isPlaying
-                  ? AppColors.teal
+                  ? AppColors.lucid
                   : AppColors.textTertiary,
         ),
       ),
@@ -485,7 +485,7 @@ class _PlaybackProgressBar extends StatelessWidget {
       child: LinearProgressIndicator(
         value: state.progress,
         backgroundColor: AppColors.border,
-        valueColor: const AlwaysStoppedAnimation(AppColors.teal),
+        valueColor: const AlwaysStoppedAnimation(AppColors.lucid),
         borderRadius: BorderRadius.circular(2),
       ),
     );
@@ -541,7 +541,7 @@ class _RecordControls extends StatelessWidget {
             const SizedBox(width: 24),
             _BigButton(
               icon: Icons.play_arrow,
-              color: AppColors.teal,
+              color: AppColors.lucid,
               onTap: onPlay,
               label: 'Прослушать',
             ),
@@ -549,7 +549,7 @@ class _RecordControls extends StatelessWidget {
         RecorderPlaying() => [
             _BigButton(
               icon: Icons.stop,
-              color: AppColors.teal,
+              color: AppColors.lucid,
               onTap: onStopPlay,
               label: 'Стоп',
             ),

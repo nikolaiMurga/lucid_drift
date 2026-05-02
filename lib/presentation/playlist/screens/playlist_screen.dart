@@ -178,7 +178,7 @@ class _SummaryBar extends StatelessWidget {
               style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
           const Spacer(),
           if (playlist.loop)
-            const Icon(Icons.repeat, size: 16, color: AppColors.teal),
+            const Icon(Icons.repeat, size: 16, color: AppColors.lucid),
         ],
       ),
     );
@@ -309,7 +309,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             title: const Text('Зациклить плейлист'),
             subtitle: const Text('Повторять до будильника'),
             value: _loop,
-            activeThumbColor: AppColors.teal,
+            activeThumbColor: AppColors.lucid,
             onChanged: (v) => setState(() => _loop = v),
           ),
           const SizedBox(height: 16),

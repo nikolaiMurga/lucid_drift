@@ -45,7 +45,7 @@ class _ScheduleView extends StatelessWidget {
               if (state is ScheduleLoaded)
                 Switch(
                   value: state.schedule.isActive,
-                  activeThumbColor: AppColors.teal,
+                  activeThumbColor: AppColors.lucid,
                   onChanged: (_) => context.read<ScheduleCubit>().toggleActive(),
                 ),
             ],
@@ -167,16 +167,10 @@ class _ScheduleBody extends StatelessWidget {
         // ── Цикл ──────────────────────────────────────────────────────────
         const _SectionLabel('Целевой REM-цикл'),
         const SizedBox(height: 4),
-        Text('Триггер: ${_fmtDt(state.triggerAt)}', style: const TextStyle(fontSize: 12, color: AppColors.teal)),
+        Text('Триггер: ${_fmtDt(state.triggerAt)}', style: const TextStyle(fontSize: 12, color: AppColors.lucid)),
         const SizedBox(height: 10),
         _CycleSelector(selected: s.targetCycles, bedTime: s.bedTime, onToggle: (c) => context.read<ScheduleCubit>().toggleTargetCycle(c)),
         const SizedBox(height: 16),
-
-        // ── Режим воспроизведения ─────────────────────────────────────────
-        const _SectionLabel('Режим воспроизведения'),
-        const SizedBox(height: 8),
-        _PlaybackModeSelector(selected: s.playbackMode, onChanged: (m) => context.read<ScheduleCubit>().updatePlaybackMode(m)),
-        const SizedBox(height: 20),
 
         // ── Дни ───────────────────────────────────────────────────────────
         const _SectionLabel('Активные дни'),
@@ -419,7 +413,7 @@ class _DebriefCardState extends State<_DebriefCard> {
               final color = switch (level) {
                 LucidityLevel.none => AppColors.textTertiary,
                 LucidityLevel.partial => AppColors.dream,
-                LucidityLevel.lucid => AppColors.teal,
+                LucidityLevel.lucid => AppColors.lucid,
               };
               return Expanded(
                 child: GestureDetector(
@@ -457,7 +451,7 @@ class _DebriefCardState extends State<_DebriefCard> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.teal),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.lucid),
               onPressed: () {
                 context.read<ScheduleCubit>().saveDebrief(
                   sessionId: widget.session.id,
@@ -596,11 +590,11 @@ class _CycleSelector extends StatelessWidget {
               ),
               Padding(
                 padding: EdgeInsets.only(left: 16),
-                child: Icon(Icons.psychology_outlined, size: 10, color: AppColors.teal),
+                child: Icon(Icons.psychology_outlined, size: 10, color: AppColors.lucid),
               ),
               Padding(
                 padding: EdgeInsets.only(left: 4),
-                child: Text('Триггеры', style: TextStyle(fontSize: 10, color: AppColors.teal)),
+                child: Text('Триггеры', style: TextStyle(fontSize: 10, color: AppColors.lucid)),
               ),
             ],
           ),
@@ -613,7 +607,7 @@ class _CycleSelector extends StatelessWidget {
   Widget _buildChip(SleepCycle cycle, ValueChanged<SleepCycle> onToggle) {
     final isSelected = selected.contains(cycle);
     final isAffirmation = cycle.isAffirmationPhase;
-    final activeColor = isAffirmation ? AppColors.dream : AppColors.teal;
+    final activeColor = isAffirmation ? AppColors.dream : AppColors.lucid;
 
     final totalMins = bedTime.hour * 60 + bedTime.minute + cycle.minutesFromBed;
     final h = (totalMins ~/ 60) % 24;
@@ -654,75 +648,6 @@ class _CycleSelector extends StatelessWidget {
   }
 }
 
-class _PlaybackModeSelector extends StatelessWidget {
-  final SchedulePlaybackMode selected;
-  final ValueChanged<SchedulePlaybackMode> onChanged;
-
-  const _PlaybackModeSelector({required this.selected, required this.onChanged});
-
-  /// Строит список карточек выбора режима воспроизведения.
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: SchedulePlaybackMode.values.map((mode) {
-        final isSelected = selected == mode;
-        final label = switch (mode) {
-          SchedulePlaybackMode.fullPhase  => 'Вся фаза ±10 мин',
-          SchedulePlaybackMode.midPhase3x => 'Середина фазы × 3',
-        };
-        final sublabel = switch (mode) {
-          SchedulePlaybackMode.fullPhase  => 'Тихий фон на всё REM-окно — оптимально для аффирмаций',
-          SchedulePlaybackMode.midPhase3x => 'Точечный сигнал в пик REM — оптимально для триггеров',
-        };
-        final icon = switch (mode) {
-          SchedulePlaybackMode.fullPhase  => Icons.waves_outlined,
-          SchedulePlaybackMode.midPhase3x => Icons.flash_on_outlined,
-        };
-
-        return GestureDetector(
-          onTap: () => onChanged(mode),
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: isSelected ? AppColors.dream.withValues(alpha: 0.1) : AppColors.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isSelected ? AppColors.dream.withValues(alpha: 0.5) : AppColors.border),
-            ),
-            child: Row(
-              children: [
-                Icon(icon, size: 18, color: isSelected ? AppColors.dream : AppColors.textTertiary),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          label,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: material.FontWeight.w500,
-                            color: isSelected ? AppColors.dream : AppColors.textPrimary,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(sublabel, style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (isSelected) const Icon(Icons.check_circle_outline, size: 16, color: AppColors.dream),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
 
 class _DaySelector extends StatelessWidget {
   final List<int> activeDays;
@@ -799,7 +724,7 @@ class _WbtbSection extends StatelessWidget {
                 ],
               ),
               const Spacer(),
-              Switch(value: schedule.wbtbMode, activeThumbColor: AppColors.teal, onChanged: (_) => context.read<ScheduleCubit>().toggleWbtb()),
+              Switch(value: schedule.wbtbMode, activeThumbColor: AppColors.lucid, onChanged: (_) => context.read<ScheduleCubit>().toggleWbtb()),
             ],
           ),
           if (schedule.wbtbMode) ...[
@@ -815,7 +740,7 @@ class _WbtbSection extends StatelessWidget {
                 const Spacer(),
                 Text(
                   '${schedule.wbtbAwakeMins} мин',
-                  style: const TextStyle(fontSize: 13, color: AppColors.teal, fontWeight: material.FontWeight.w500),
+                  style: const TextStyle(fontSize: 13, color: AppColors.lucid, fontWeight: material.FontWeight.w500),
                 ),
               ],
             ),
@@ -824,7 +749,7 @@ class _WbtbSection extends StatelessWidget {
               min: 10,
               max: 60,
               divisions: 10,
-              activeColor: AppColors.teal,
+              activeColor: AppColors.lucid,
               onChanged: (v) => context.read<ScheduleCubit>().updateWbtbMins(v.round()),
             ),
           ],

@@ -7,7 +7,6 @@ import 'package:isar/isar.dart';
 
 import '../../data/models/content_item_model.dart';
 import '../../data/models/night_playlist_model.dart' hide fastHash;
-import '../../domain/entities/night_playlist.dart';
 import '../../domain/entities/sleep_schedule.dart';
 
 /// Результат воспроизведения — передаётся в RemTriggerService для лога
@@ -57,8 +56,8 @@ class NightAudioPlayer {
     // 2. Конфигурируем аудио-сессию
     await _configureAudioSession();
 
-    // 3. Собираем очередь треков
-    final queue = await _buildQueue(isar, playlistModel);
+    // 3. Собираем очередь треков только нужного типа (аффирмации для 1–3, триггеры для 4–5)
+    final queue = await _buildQueue(isar, playlistModel, isAffirmationCycle: cycle.isAffirmationPhase);
     if (queue.isEmpty) {
       debugPrint('[NightAudioPlayer] Очередь пуста — у треков нет аудио-файлов.');
       return null;
@@ -177,40 +176,30 @@ class NightAudioPlayer {
         ?? models.where((m) => m.entryItemIds.isNotEmpty).firstOrNull;
   }
 
+  /// Строит очередь треков только нужного типа:
+  /// аффирмации для фаз 1–3, триггеры для фаз 4–5.
   Future<List<_TrackEntry>> _buildQueue(
-      Isar isar, NightPlaylistModel playlist) async {
+    Isar isar,
+    NightPlaylistModel playlist, {
+    required bool isAffirmationCycle,
+  }) async {
     final result = <_TrackEntry>[];
 
-    for (int i = 0; i < playlist.entryItemIds.length; i++) {
-      final itemId = playlist.entryItemIds[i];
+    for (final itemId in playlist.entryItemIds) {
       final model = await isar.contentItemModels.get(fastHash(itemId));
       if (model == null || model.audioLocalPath == null) continue;
 
-      final isAffirmation =
-          model.contentType == ContentTypeEnum.affirmation;
-      final volume = isAffirmation
-          ? playlist.affirmationVolume
-          : playlist.triggerVolume;
+      final isAffirmation = model.contentType == ContentTypeEnum.affirmation;
+      // Пропускаем треки не того типа что и цикл
+      if (isAffirmation != isAffirmationCycle) continue;
 
+      final volume = isAffirmation ? playlist.affirmationVolume : playlist.triggerVolume;
       result.add(_TrackEntry(
         localPath: model.audioLocalPath!,
         volume: volume,
         isAffirmation: isAffirmation,
       ));
     }
-
-    // Сортировка по playbackMode
-    final mode = PlaybackMode.values[playlist.playbackModeIndex];
-    if (mode == PlaybackMode.affirmationsFirst) {
-      result.sort((a, b) => a.isAffirmation == b.isAffirmation
-          ? 0
-          : a.isAffirmation ? -1 : 1);
-    } else if (mode == PlaybackMode.triggersFirst) {
-      result.sort((a, b) => a.isAffirmation == b.isAffirmation
-          ? 0
-          : a.isAffirmation ? 1 : -1);
-    }
-    // interleaved — оставляем как есть
 
     return result;
   }

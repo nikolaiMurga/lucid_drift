@@ -87,10 +87,10 @@ class ContentItemTile extends StatelessWidget {
                     _AudioBadge(item: item, isPlaying: isPlaying, typeColor: typeColor),
                   if (isInPlaylist) ...[
                     if (item.audioDuration != null) const SizedBox(width: 6),
-                    const Icon(Icons.queue_music, size: 11, color: AppColors.teal),
+                    const Icon(Icons.queue_music, size: 11, color: AppColors.lucid),
                     const SizedBox(width: 2),
                     const Text('В плейлисте',
-                        style: TextStyle(fontSize: 11, color: AppColors.teal)),
+                        style: TextStyle(fontSize: 11, color: AppColors.lucid)),
                   ],
                 ],
               ),
@@ -103,7 +103,7 @@ class ContentItemTile extends StatelessWidget {
                 IconButton(
                   icon: Icon(
                     isPlaying ? Icons.stop_circle_outlined : Icons.play_circle_outline,
-                    color: isPlaying ? typeColor : AppColors.teal,
+                    color: isPlaying ? typeColor : AppColors.lucid,
                   ),
                   onPressed: isPlaying ? onStopPlay : onPlay,
                   tooltip: isPlaying ? 'Стоп' : 'Прослушать',
@@ -111,7 +111,7 @@ class ContentItemTile extends StatelessWidget {
                 IconButton(
                   icon: Icon(
                     isInPlaylist ? Icons.playlist_add_check : Icons.playlist_add,
-                    color: isInPlaylist ? AppColors.teal : AppColors.textTertiary,
+                    color: isInPlaylist ? AppColors.lucid : AppColors.textTertiary,
                     size: 22,
                   ),
                   onPressed: isInPlaylist ? onRemoveFromPlaylist : onAddToPlaylist,

@@ -139,9 +139,13 @@ class ScheduleCubit extends Cubit<ScheduleState> {
         return _rebuild(s, targetCycles: cycles);
       });
 
-  /// Обновляет режим воспроизведения (вся фаза / середина ×3).
-  Future<void> updatePlaybackMode(SchedulePlaybackMode mode) =>
-      _update((s) => _rebuild(s, playbackMode: mode));
+  /// Обновляет режим воспроизведения для аффирмаций (фазы 1–3).
+  Future<void> updateAffirmationPlaybackMode(SchedulePlaybackMode mode) =>
+      _update((s) => _rebuild(s, affirmationPlaybackMode: mode));
+
+  /// Обновляет режим воспроизведения для триггеров (фазы 4–5).
+  Future<void> updateTriggerPlaybackMode(SchedulePlaybackMode mode) =>
+      _update((s) => _rebuild(s, triggerPlaybackMode: mode));
 
   Future<void> toggleDay(int weekday) => _update((s) {
         final days = List<int>.from(s.activeDays);
@@ -272,7 +276,8 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     TimeOfDay? bedTime,
     TimeOfDay? wakeTime,
     List<SleepCycle>? targetCycles,
-    SchedulePlaybackMode? playbackMode,
+    SchedulePlaybackMode? affirmationPlaybackMode,
+    SchedulePlaybackMode? triggerPlaybackMode,
     bool? isActive,
     List<int>? activeDays,
     bool? wbtbMode,
@@ -283,7 +288,8 @@ class ScheduleCubit extends Cubit<ScheduleState> {
         bedTime: bedTime ?? s.bedTime,
         wakeTime: wakeTime ?? s.wakeTime,
         targetCycles: targetCycles ?? s.targetCycles,
-        playbackMode: playbackMode ?? s.playbackMode,
+        affirmationPlaybackMode: affirmationPlaybackMode ?? s.affirmationPlaybackMode,
+        triggerPlaybackMode: triggerPlaybackMode ?? s.triggerPlaybackMode,
         isActive: isActive ?? s.isActive,
         activeDays: activeDays ?? s.activeDays,
         wbtbMode: wbtbMode ?? s.wbtbMode,

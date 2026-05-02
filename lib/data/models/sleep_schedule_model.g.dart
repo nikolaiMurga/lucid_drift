@@ -23,53 +23,58 @@ const SleepScheduleModelSchema = CollectionSchema(
       name: r'activeDays',
       type: IsarType.longList,
     ),
-    r'bedTimeHour': PropertySchema(
+    r'affirmationPlaybackModeIndex': PropertySchema(
       id: 1,
+      name: r'affirmationPlaybackModeIndex',
+      type: IsarType.long,
+    ),
+    r'bedTimeHour': PropertySchema(
+      id: 2,
       name: r'bedTimeHour',
       type: IsarType.long,
     ),
     r'bedTimeMinute': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'bedTimeMinute',
       type: IsarType.long,
     ),
     r'id': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'id',
       type: IsarType.string,
     ),
     r'isActive': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'isActive',
       type: IsarType.bool,
-    ),
-    r'playbackModeIndex': PropertySchema(
-      id: 5,
-      name: r'playbackModeIndex',
-      type: IsarType.long,
     ),
     r'targetCycleIndices': PropertySchema(
       id: 6,
       name: r'targetCycleIndices',
       type: IsarType.longList,
     ),
-    r'wakeTimeHour': PropertySchema(
+    r'triggerPlaybackModeIndex': PropertySchema(
       id: 7,
+      name: r'triggerPlaybackModeIndex',
+      type: IsarType.long,
+    ),
+    r'wakeTimeHour': PropertySchema(
+      id: 8,
       name: r'wakeTimeHour',
       type: IsarType.long,
     ),
     r'wakeTimeMinute': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'wakeTimeMinute',
       type: IsarType.long,
     ),
     r'wbtbAwakeMins': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'wbtbAwakeMins',
       type: IsarType.long,
     ),
     r'wbtbMode': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'wbtbMode',
       type: IsarType.bool,
     )
@@ -107,16 +112,17 @@ void _sleepScheduleModelSerialize(
   Map<Type, List<int>> allOffsets,
 ) {
   writer.writeLongList(offsets[0], object.activeDays);
-  writer.writeLong(offsets[1], object.bedTimeHour);
-  writer.writeLong(offsets[2], object.bedTimeMinute);
-  writer.writeString(offsets[3], object.id);
-  writer.writeBool(offsets[4], object.isActive);
-  writer.writeLong(offsets[5], object.playbackModeIndex);
+  writer.writeLong(offsets[1], object.affirmationPlaybackModeIndex);
+  writer.writeLong(offsets[2], object.bedTimeHour);
+  writer.writeLong(offsets[3], object.bedTimeMinute);
+  writer.writeString(offsets[4], object.id);
+  writer.writeBool(offsets[5], object.isActive);
   writer.writeLongList(offsets[6], object.targetCycleIndices);
-  writer.writeLong(offsets[7], object.wakeTimeHour);
-  writer.writeLong(offsets[8], object.wakeTimeMinute);
-  writer.writeLong(offsets[9], object.wbtbAwakeMins);
-  writer.writeBool(offsets[10], object.wbtbMode);
+  writer.writeLong(offsets[7], object.triggerPlaybackModeIndex);
+  writer.writeLong(offsets[8], object.wakeTimeHour);
+  writer.writeLong(offsets[9], object.wakeTimeMinute);
+  writer.writeLong(offsets[10], object.wbtbAwakeMins);
+  writer.writeBool(offsets[11], object.wbtbMode);
 }
 
 SleepScheduleModel _sleepScheduleModelDeserialize(
@@ -127,16 +133,17 @@ SleepScheduleModel _sleepScheduleModelDeserialize(
 ) {
   final object = SleepScheduleModel();
   object.activeDays = reader.readLongList(offsets[0]) ?? [];
-  object.bedTimeHour = reader.readLong(offsets[1]);
-  object.bedTimeMinute = reader.readLong(offsets[2]);
-  object.id = reader.readString(offsets[3]);
-  object.isActive = reader.readBool(offsets[4]);
-  object.playbackModeIndex = reader.readLong(offsets[5]);
+  object.affirmationPlaybackModeIndex = reader.readLong(offsets[1]);
+  object.bedTimeHour = reader.readLong(offsets[2]);
+  object.bedTimeMinute = reader.readLong(offsets[3]);
+  object.id = reader.readString(offsets[4]);
+  object.isActive = reader.readBool(offsets[5]);
   object.targetCycleIndices = reader.readLongList(offsets[6]) ?? [];
-  object.wakeTimeHour = reader.readLong(offsets[7]);
-  object.wakeTimeMinute = reader.readLong(offsets[8]);
-  object.wbtbAwakeMins = reader.readLong(offsets[9]);
-  object.wbtbMode = reader.readBool(offsets[10]);
+  object.triggerPlaybackModeIndex = reader.readLong(offsets[7]);
+  object.wakeTimeHour = reader.readLong(offsets[8]);
+  object.wakeTimeMinute = reader.readLong(offsets[9]);
+  object.wbtbAwakeMins = reader.readLong(offsets[10]);
+  object.wbtbMode = reader.readBool(offsets[11]);
   return object;
 }
 
@@ -154,11 +161,11 @@ P _sleepScheduleModelDeserializeProp<P>(
     case 2:
       return (reader.readLong(offset)) as P;
     case 3:
-      return (reader.readString(offset)) as P;
-    case 4:
-      return (reader.readBool(offset)) as P;
-    case 5:
       return (reader.readLong(offset)) as P;
+    case 4:
+      return (reader.readString(offset)) as P;
+    case 5:
+      return (reader.readBool(offset)) as P;
     case 6:
       return (reader.readLongList(offset) ?? []) as P;
     case 7:
@@ -168,6 +175,8 @@ P _sleepScheduleModelDeserializeProp<P>(
     case 9:
       return (reader.readLong(offset)) as P;
     case 10:
+      return (reader.readLong(offset)) as P;
+    case 11:
       return (reader.readBool(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -411,6 +420,62 @@ extension SleepScheduleModelQueryFilter
         upper,
         includeUpper,
       );
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      affirmationPlaybackModeIndexEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'affirmationPlaybackModeIndex',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      affirmationPlaybackModeIndexGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'affirmationPlaybackModeIndex',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      affirmationPlaybackModeIndexLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'affirmationPlaybackModeIndex',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      affirmationPlaybackModeIndexBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'affirmationPlaybackModeIndex',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
     });
   }
 
@@ -729,62 +794,6 @@ extension SleepScheduleModelQueryFilter
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
-      playbackModeIndexEqualTo(int value) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'playbackModeIndex',
-        value: value,
-      ));
-    });
-  }
-
-  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
-      playbackModeIndexGreaterThan(
-    int value, {
-    bool include = false,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'playbackModeIndex',
-        value: value,
-      ));
-    });
-  }
-
-  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
-      playbackModeIndexLessThan(
-    int value, {
-    bool include = false,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'playbackModeIndex',
-        value: value,
-      ));
-    });
-  }
-
-  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
-      playbackModeIndexBetween(
-    int lower,
-    int upper, {
-    bool includeLower = true,
-    bool includeUpper = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'playbackModeIndex',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
-    });
-  }
-
-  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
       targetCycleIndicesElementEqualTo(int value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
@@ -926,6 +935,62 @@ extension SleepScheduleModelQueryFilter
         upper,
         includeUpper,
       );
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      triggerPlaybackModeIndexEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'triggerPlaybackModeIndex',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      triggerPlaybackModeIndexGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'triggerPlaybackModeIndex',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      triggerPlaybackModeIndexLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'triggerPlaybackModeIndex',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      triggerPlaybackModeIndexBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'triggerPlaybackModeIndex',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
     });
   }
 
@@ -1117,6 +1182,20 @@ extension SleepScheduleModelQueryLinks
 extension SleepScheduleModelQuerySortBy
     on QueryBuilder<SleepScheduleModel, SleepScheduleModel, QSortBy> {
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
+      sortByAffirmationPlaybackModeIndex() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'affirmationPlaybackModeIndex', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
+      sortByAffirmationPlaybackModeIndexDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'affirmationPlaybackModeIndex', Sort.desc);
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
       sortByBedTimeHour() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'bedTimeHour', Sort.asc);
@@ -1173,16 +1252,16 @@ extension SleepScheduleModelQuerySortBy
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
-      sortByPlaybackModeIndex() {
+      sortByTriggerPlaybackModeIndex() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'playbackModeIndex', Sort.asc);
+      return query.addSortBy(r'triggerPlaybackModeIndex', Sort.asc);
     });
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
-      sortByPlaybackModeIndexDesc() {
+      sortByTriggerPlaybackModeIndexDesc() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'playbackModeIndex', Sort.desc);
+      return query.addSortBy(r'triggerPlaybackModeIndex', Sort.desc);
     });
   }
 
@@ -1245,6 +1324,20 @@ extension SleepScheduleModelQuerySortBy
 
 extension SleepScheduleModelQuerySortThenBy
     on QueryBuilder<SleepScheduleModel, SleepScheduleModel, QSortThenBy> {
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
+      thenByAffirmationPlaybackModeIndex() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'affirmationPlaybackModeIndex', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
+      thenByAffirmationPlaybackModeIndexDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'affirmationPlaybackModeIndex', Sort.desc);
+    });
+  }
+
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
       thenByBedTimeHour() {
     return QueryBuilder.apply(this, (query) {
@@ -1316,16 +1409,16 @@ extension SleepScheduleModelQuerySortThenBy
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
-      thenByPlaybackModeIndex() {
+      thenByTriggerPlaybackModeIndex() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'playbackModeIndex', Sort.asc);
+      return query.addSortBy(r'triggerPlaybackModeIndex', Sort.asc);
     });
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
-      thenByPlaybackModeIndexDesc() {
+      thenByTriggerPlaybackModeIndexDesc() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'playbackModeIndex', Sort.desc);
+      return query.addSortBy(r'triggerPlaybackModeIndex', Sort.desc);
     });
   }
 
@@ -1396,6 +1489,13 @@ extension SleepScheduleModelQueryWhereDistinct
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QDistinct>
+      distinctByAffirmationPlaybackModeIndex() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'affirmationPlaybackModeIndex');
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QDistinct>
       distinctByBedTimeHour() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'bedTimeHour');
@@ -1424,16 +1524,16 @@ extension SleepScheduleModelQueryWhereDistinct
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QDistinct>
-      distinctByPlaybackModeIndex() {
+      distinctByTargetCycleIndices() {
     return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'playbackModeIndex');
+      return query.addDistinctBy(r'targetCycleIndices');
     });
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QDistinct>
-      distinctByTargetCycleIndices() {
+      distinctByTriggerPlaybackModeIndex() {
     return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'targetCycleIndices');
+      return query.addDistinctBy(r'triggerPlaybackModeIndex');
     });
   }
 
@@ -1482,6 +1582,13 @@ extension SleepScheduleModelQueryProperty
   }
 
   QueryBuilder<SleepScheduleModel, int, QQueryOperations>
+      affirmationPlaybackModeIndexProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'affirmationPlaybackModeIndex');
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, int, QQueryOperations>
       bedTimeHourProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'bedTimeHour');
@@ -1507,17 +1614,17 @@ extension SleepScheduleModelQueryProperty
     });
   }
 
-  QueryBuilder<SleepScheduleModel, int, QQueryOperations>
-      playbackModeIndexProperty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addPropertyName(r'playbackModeIndex');
-    });
-  }
-
   QueryBuilder<SleepScheduleModel, List<int>, QQueryOperations>
       targetCycleIndicesProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'targetCycleIndices');
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, int, QQueryOperations>
+      triggerPlaybackModeIndexProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'triggerPlaybackModeIndex');
     });
   }
 

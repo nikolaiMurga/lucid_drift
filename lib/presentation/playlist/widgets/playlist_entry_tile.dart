@@ -91,11 +91,11 @@ class PlaylistEntryTile extends StatelessWidget {
             ],
             if (isPlaying) ...[
               const SizedBox(width: 6),
-              const Icon(Icons.graphic_eq, size: 11, color: AppColors.teal),
+              const Icon(Icons.graphic_eq, size: 11, color: AppColors.lucid),
               const SizedBox(width: 3),
               const Text(
                 'Воспроизведение',
-                style: TextStyle(fontSize: 11, color: AppColors.teal),
+                style: TextStyle(fontSize: 11, color: AppColors.lucid),
               ),
             ],
           ],
@@ -107,7 +107,7 @@ class PlaylistEntryTile extends StatelessWidget {
               IconButton(
                 icon: Icon(
                   isPlaying ? Icons.stop_circle_outlined : Icons.play_circle_outline,
-                  color: isPlaying ? AppColors.teal : AppColors.textSecondary,
+                  color: isPlaying ? AppColors.lucid : AppColors.textSecondary,
                   size: 22,
                 ),
                 onPressed: isPlaying ? onStop : onPlay,

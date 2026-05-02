@@ -10,8 +10,7 @@ class ShellScreen extends StatelessWidget {
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
     if (location.startsWith(AppRoutes.library))  return 0;
-    if (location.startsWith(AppRoutes.playlist)) return 1;
-    if (location.startsWith(AppRoutes.schedule)) return 2;
+    if (location.startsWith(AppRoutes.schedule)) return 1;
     return 0;
   }
 
@@ -25,8 +24,7 @@ class ShellScreen extends StatelessWidget {
         onDestinationSelected: (i) {
           switch (i) {
             case 0: context.go(AppRoutes.library);
-            case 1: context.go(AppRoutes.playlist);
-            case 2: context.go(AppRoutes.schedule);
+            case 1: context.go(AppRoutes.schedule);
           }
         },
         destinations: const [
@@ -34,11 +32,6 @@ class ShellScreen extends StatelessWidget {
             icon: Icon(Icons.self_improvement_outlined),
             selectedIcon: Icon(Icons.self_improvement, color: AppColors.dream),
             label: 'Контент',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.queue_music_outlined),
-            selectedIcon: Icon(Icons.queue_music, color: AppColors.teal),
-            label: 'Плейлист',
           ),
           NavigationDestination(
             icon: Icon(Icons.nightlight_outlined),

@@ -40,7 +40,10 @@ class SleepSchedule extends Equatable {
   final TimeOfDay bedTime;
   final TimeOfDay wakeTime;
   final List<SleepCycle> targetCycles;
-  final SchedulePlaybackMode playbackMode;
+  /// Режим для фаз 1–3 (аффирмации): фон на всё REM-окно.
+  final SchedulePlaybackMode affirmationPlaybackMode;
+  /// Режим для фаз 4–5 (триггеры): точечный сигнал в пик REM.
+  final SchedulePlaybackMode triggerPlaybackMode;
   final bool isActive;
   final List<int> activeDays; // 1=пн, 7=вс
   final bool wbtbMode;        // Wake Back To Bed
@@ -52,20 +55,25 @@ class SleepSchedule extends Equatable {
     required this.wakeTime,
     required this.activeDays,
     this.targetCycles = const [SleepCycle.fourth],
-    this.playbackMode = SchedulePlaybackMode.fullPhase,
+    this.affirmationPlaybackMode = SchedulePlaybackMode.fullPhase,
+    this.triggerPlaybackMode = SchedulePlaybackMode.midPhase3x,
     this.isActive = true,
     this.wbtbMode = false,
     this.wbtbAwakeMins = 30,
   });
 
+  /// Возвращает режим воспроизведения для заданного цикла.
+  SchedulePlaybackMode modeForCycle(SleepCycle cycle) =>
+      cycle.isAffirmationPhase ? affirmationPlaybackMode : triggerPlaybackMode;
+
   /// Рассчитывает DateTime первого (ближайшего) триггера для заданной даты.
   /// Используется для отображения в UI.
   DateTime triggerDateTime(DateTime sleepDate) {
-    final offset = switch (playbackMode) {
+    final earliest = targetCycles.reduce((a, b) => a.index < b.index ? a : b);
+    final offset = switch (modeForCycle(earliest)) {
       SchedulePlaybackMode.fullPhase  => -10,
       SchedulePlaybackMode.midPhase3x => 0,
     };
-    final earliest = targetCycles.reduce((a, b) => a.index < b.index ? a : b);
     return DateTime(
       sleepDate.year,
       sleepDate.month,
@@ -76,19 +84,19 @@ class SleepSchedule extends Equatable {
   }
 
   /// Возвращает все DateTime триггеров для каждого выбранного цикла.
-  /// Используется в фоновом сервисе для проверки совпадения по времени.
+  /// Каждый цикл использует свой режим (аффирмации vs триггеры).
   List<DateTime> triggerDateTimes(DateTime sleepDate) {
-    final offset = switch (playbackMode) {
-      SchedulePlaybackMode.fullPhase  => -10,
-      SchedulePlaybackMode.midPhase3x => 0,
-    };
     final bed = DateTime(
       sleepDate.year, sleepDate.month, sleepDate.day,
       bedTime.hour, bedTime.minute,
     );
-    return targetCycles
-        .map((c) => bed.add(Duration(minutes: c.minutesFromBed + offset)))
-        .toList();
+    return targetCycles.map((c) {
+      final offset = switch (modeForCycle(c)) {
+        SchedulePlaybackMode.fullPhase  => -10,
+        SchedulePlaybackMode.midPhase3x => 0,
+      };
+      return bed.add(Duration(minutes: c.minutesFromBed + offset));
+    }).toList();
   }
 
   bool get isActiveToday {
@@ -97,7 +105,11 @@ class SleepSchedule extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, bedTime, wakeTime, targetCycles, playbackMode, isActive, activeDays, wbtbMode];
+  List<Object?> get props => [
+    id, bedTime, wakeTime, targetCycles,
+    affirmationPlaybackMode, triggerPlaybackMode,
+    isActive, activeDays, wbtbMode,
+  ];
 }
 
 // Простой value object чтобы не тащить material в domain

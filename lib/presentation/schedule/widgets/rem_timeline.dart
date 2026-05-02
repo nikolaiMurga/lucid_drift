@@ -94,7 +94,7 @@ class RemTimeline extends StatelessWidget {
                       final Color blockColor = isSelected
                           ? (isAffirmation
                               ? AppColors.dream.withValues(alpha: 0.85)
-                              : AppColors.teal.withValues(alpha: 0.85))
+                              : AppColors.lucid.withValues(alpha: 0.85))
                           : AppColors.textTertiary.withValues(alpha: 0.3);
 
                       return Positioned(
@@ -139,7 +139,7 @@ class RemTimeline extends StatelessWidget {
               const SizedBox(width: 12),
               const _LegendItem(color: AppColors.dream, label: 'Аффирмации'),
               const SizedBox(width: 12),
-              const _LegendItem(color: AppColors.teal, label: 'Триггеры'),
+              const _LegendItem(color: AppColors.lucid, label: 'Триггеры'),
             ],
           ),
         ],

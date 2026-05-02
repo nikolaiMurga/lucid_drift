@@ -7,6 +7,7 @@ import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/content_item.dart';
 import '../../../domain/entities/content_type.dart';
+import '../../../domain/entities/sleep_schedule.dart';
 import '../../../domain/usecases/content/content_usecases.dart';
 import '../cubit/content_library_cubit.dart';
 import '../cubit/content_library_state.dart';
@@ -24,6 +25,9 @@ class ContentLibraryScreen extends StatelessWidget {
         addToPlaylist: sl(),
         removeFromPlaylist: sl(),
         watchPlaylist: sl(),
+        updatePlaylistSettings: sl(),
+        getSchedule: sl(),
+        saveSchedule: sl(),
       )..init(),
       child: const _ContentLibraryView(),
     );
@@ -50,9 +54,7 @@ class _ContentLibraryView extends StatelessWidget {
               const Center(child: CircularProgressIndicator()),
             ContentLibraryError(:final message) =>
               Center(child: Text(message, style: const TextStyle(color: Colors.red))),
-            ContentLibraryLoaded(:final activeList) => activeList.isEmpty
-                ? _EmptyState(tab: state.activeTab)
-                : _ItemList(items: activeList, state: state),
+            ContentLibraryLoaded() => _LoadedBody(state: state),
           },
           floatingActionButton: FloatingActionButton.extended(
             backgroundColor: AppColors.dream,
@@ -84,6 +86,27 @@ class _ContentLibraryView extends StatelessWidget {
           });
         },
       ),
+    );
+  }
+}
+
+// ─── Loaded body ──────────────────────────────────────────────────────────────
+
+class _LoadedBody extends StatelessWidget {
+  final ContentLibraryLoaded state;
+  const _LoadedBody({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _SettingsPanel(state: state),
+        Expanded(
+          child: state.activeList.isEmpty
+              ? _EmptyState(tab: state.activeTab)
+              : _ItemList(items: state.activeList, state: state),
+        ),
+      ],
     );
   }
 }
@@ -131,6 +154,145 @@ class _TabBar extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Settings panel ───────────────────────────────────────────────────────────
+
+class _SettingsPanel extends StatelessWidget {
+  final ContentLibraryLoaded state;
+  const _SettingsPanel({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final isAffirmation = state.activeTab == ContentTab.affirmations;
+    final color = isAffirmation ? AppColors.affirmation : AppColors.lucid;
+    final volume = isAffirmation ? state.affirmationVolume : state.triggerVolume;
+    final playbackMode = isAffirmation ? state.affirmationPlaybackMode : state.triggerPlaybackMode;
+    final cubit = context.read<ContentLibraryCubit>();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Громкость
+          Row(
+            children: [
+              Icon(Icons.volume_up_outlined, size: 14, color: color),
+              const SizedBox(width: 6),
+              Text(
+                'ГРОМКОСТЬ',
+                style: TextStyle(fontSize: 11, letterSpacing: 0.5, color: color, fontWeight: FontWeight.w500),
+              ),
+              const Spacer(),
+              Text(
+                '${(volume * 100).round()}%',
+                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+          _VolumeSlider(
+            color: color,
+            value: volume,
+            onChanged: isAffirmation
+                ? (v) => cubit.updateAffirmationVolume(v)
+                : (v) => cubit.updateTriggerVolume(v),
+          ),
+          const Padding(
+            padding: EdgeInsets.only(top: 4, bottom: 8),
+            child: Divider(height: 1, color: AppColors.border),
+          ),
+          // Режим воспроизведения
+          const Text(
+            'РЕЖИМ',
+            style: TextStyle(fontSize: 11, letterSpacing: 0.5, color: AppColors.textTertiary, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: SchedulePlaybackMode.values.map((mode) {
+              final isSelected = playbackMode == mode;
+              final label = switch (mode) {
+                SchedulePlaybackMode.fullPhase  => 'Вся фаза',
+                SchedulePlaybackMode.midPhase3x => 'Середина × 3',
+              };
+              final sublabel = switch (mode) {
+                SchedulePlaybackMode.fullPhase  => 'Тихий фон',
+                SchedulePlaybackMode.midPhase3x => 'Точечный сигнал',
+              };
+              final icon = switch (mode) {
+                SchedulePlaybackMode.fullPhase  => Icons.waves_outlined,
+                SchedulePlaybackMode.midPhase3x => Icons.flash_on_outlined,
+              };
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => isAffirmation
+                      ? cubit.updateAffirmationPlaybackMode(mode)
+                      : cubit.updateTriggerPlaybackMode(mode),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? color.withValues(alpha: 0.12) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: isSelected ? color.withValues(alpha: 0.5) : AppColors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(icon, size: 14, color: isSelected ? color : AppColors.textTertiary),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                label,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: isSelected ? color : AppColors.textPrimary,
+                                ),
+                              ),
+                              Text(
+                                sublabel,
+                                style: const TextStyle(fontSize: 10, color: AppColors.textTertiary),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VolumeSlider extends StatelessWidget {
+  final Color color;
+  final double value;
+  final ValueChanged<double> onChanged;
+  const _VolumeSlider({required this.color, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) => Slider(
+        value: value,
+        min: 0.1,
+        max: 1.0,
+        divisions: 18,
+        activeColor: color,
+        onChanged: onChanged,
+      );
 }
 
 // ─── Item list ────────────────────────────────────────────────────────────────
