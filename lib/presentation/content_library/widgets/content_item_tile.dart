@@ -7,6 +7,7 @@ class ContentItemTile extends StatelessWidget {
   final ContentItem item;
   final bool isPlaying;
   final bool isInPlaylist;
+  final bool showDragHandle;
   final VoidCallback onPlay;
   final VoidCallback onStopPlay;
   final VoidCallback onRecord;
@@ -19,6 +20,7 @@ class ContentItemTile extends StatelessWidget {
     required this.item,
     required this.isPlaying,
     required this.isInPlaylist,
+    this.showDragHandle = false,
     required this.onPlay,
     required this.onStopPlay,
     required this.onRecord,
@@ -37,10 +39,7 @@ class ContentItemTile extends StatelessWidget {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(
-          color: Colors.red.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14),
-        ),
+        decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(14)),
         child: const Icon(Icons.delete_outline, color: Colors.red),
       ),
       confirmDismiss: (_) async => await showDialog<bool>(
@@ -64,33 +63,28 @@ class ContentItemTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: isPlaying ? typeColor.withValues(alpha: 0.08) : AppColors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isPlaying ? typeColor.withValues(alpha: 0.4) : AppColors.border,
-          ),
+          border: Border.all(color: isPlaying ? typeColor.withValues(alpha: 0.4) : AppColors.border),
         ),
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          leading: Container(
-            width: 3, height: 40,
-            decoration: BoxDecoration(color: typeColor, borderRadius: BorderRadius.circular(2)),
-          ),
+          leading: showDragHandle ? const Icon(Icons.drag_handle, color: AppColors.textTertiary, size: 24) : null,
           title: Text(item.title, style: Theme.of(context).textTheme.titleMedium),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(item.text, style: Theme.of(context).textTheme.bodyMedium,
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(item.text, style: Theme.of(context).textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 3),
               Row(
                 children: [
                   if (item.audioDuration != null)
-                    _AudioBadge(item: item, isPlaying: isPlaying, typeColor: typeColor),
+                    Flexible(
+                      child: _AudioBadge(item: item, isPlaying: isPlaying, typeColor: typeColor),
+                    ),
                   if (isInPlaylist) ...[
                     if (item.audioDuration != null) const SizedBox(width: 6),
                     const Icon(Icons.queue_music, size: 11, color: AppColors.lucid),
                     const SizedBox(width: 2),
-                    const Text('В плейлисте',
-                        style: TextStyle(fontSize: 11, color: AppColors.lucid)),
+                    const Text('В плейлисте', style: TextStyle(fontSize: 11, color: AppColors.lucid)),
                   ],
                 ],
               ),
@@ -135,6 +129,7 @@ class _AudioBadge extends StatelessWidget {
   final ContentItem item;
   final bool isPlaying;
   final Color typeColor;
+
   const _AudioBadge({required this.item, required this.isPlaying, required this.typeColor});
 
   @override
@@ -152,9 +147,12 @@ class _AudioBadge extends StatelessWidget {
           color: isPlaying ? typeColor : AppColors.textTertiary,
         ),
         const SizedBox(width: 3),
-        Text(
-          isPlaying ? 'Воспроизведение...' : (isOwn ? 'Запись · $label' : 'AI · $label'),
-          style: TextStyle(fontSize: 11, color: isPlaying ? typeColor : AppColors.textTertiary),
+        Flexible(
+          child: Text(
+            isPlaying ? 'Воспроизведение...' : (isOwn ? 'Запись · $label' : 'AI · $label'),
+            style: TextStyle(fontSize: 11, color: isPlaying ? typeColor : AppColors.textTertiary),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );

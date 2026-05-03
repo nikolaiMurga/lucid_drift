@@ -304,16 +304,22 @@ class _ItemList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
+    return ReorderableListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
       itemCount: items.length,
+      onReorder: (oldIndex, newIndex) =>
+          context.read<ContentLibraryCubit>().reorderItems(oldIndex, newIndex),
+      proxyDecorator: (child, index, animation) =>
+          Material(color: Colors.transparent, child: child),
       itemBuilder: (context, i) {
         final item = items[i];
         final cubit = context.read<ContentLibraryCubit>();
         return ContentItemTile(
+          key: ValueKey(item.id),
           item: item,
           isPlaying: state.playingItemId == item.id,
           isInPlaylist: state.isInPlaylist(item.id),
+          showDragHandle: true,
           onPlay: () => cubit.playItem(item.id),
           onStopPlay: () => cubit.stopPlayback(),
           onRecord: () => context.push(AppRoutes.recorder, extra: {

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../domain/entities/content_item.dart';
 import '../../../../domain/entities/content_type.dart';
 import '../../../../domain/entities/audio_source.dart';
@@ -26,9 +27,17 @@ class ContentLibraryCubit extends Cubit<ContentLibraryState> {
   StreamSubscription<List<ContentItem>>? _triggersSub;
   StreamSubscription<NightPlaylist?>? _playlistSub;
   StreamSubscription<SleepSchedule?>? _scheduleSub;
+  StreamSubscription<PlayerState>? _playerStateSub;
+
+  static const _affirmationsOrderKey = 'content_order_affirmations';
+  static const _triggersOrderKey = 'content_order_triggers';
 
   List<ContentItem> _affirmations = [];
   List<ContentItem> _triggers = [];
+  List<String> _affirmationsOrder = [];
+  List<String> _triggersOrder = [];
+  SharedPreferences? _prefs;
+
   Set<String> _playlistIds = {};
   double _affirmationVolume = 0.3;
   double _triggerVolume = 0.45;
@@ -55,19 +64,35 @@ class ContentLibraryCubit extends Cubit<ContentLibraryState> {
         _saveSchedule = saveSchedule,
         super(const ContentLibraryLoading(ContentTab.affirmations));
 
+  @override
+  void emit(ContentLibraryState state) {
+    if (isClosed) return;
+    super.emit(state);
+  }
+
   /// Инициализирует подписки на потоки контента, плейлиста и расписания.
-  void init() {
+  Future<void> init() async {
+    _prefs = await SharedPreferences.getInstance();
+    _affirmationsOrder = _prefs!.getStringList(_affirmationsOrderKey) ?? [];
+    _triggersOrder = _prefs!.getStringList(_triggersOrderKey) ?? [];
+
     _affirmationsSub = _getItems(
       filterType: const ContentType.affirmation(category: AffirmationCategory.custom),
     ).listen(
-      (items) { _affirmations = items; _emitLoaded(); },
+      (items) {
+        _affirmations = _applyOrder(items, _affirmationsOrder);
+        _emitLoaded();
+      },
       onError: (e) => emit(ContentLibraryError(state.activeTab, e.toString())),
     );
 
     _triggersSub = _getItems(
       filterType: const ContentType.lucidTrigger(technique: TriggerTechnique.mild),
     ).listen(
-      (items) { _triggers = items; _emitLoaded(); },
+      (items) {
+        _triggers = _applyOrder(items, _triggersOrder);
+        _emitLoaded();
+      },
       onError: (e) => emit(ContentLibraryError(state.activeTab, e.toString())),
     );
 
@@ -87,11 +112,21 @@ class ContentLibraryCubit extends Cubit<ContentLibraryState> {
       _emitLoaded();
     });
 
-    _player.playerStateStream.listen((ps) {
+    _playerStateSub = _player.playerStateStream.listen((ps) {
       if (ps.processingState == ProcessingState.completed) {
         _emitLoaded(clearPlaying: true);
       }
     });
+  }
+
+  /// Применяет сохранённый порядок к списку элементов.
+  /// Новые элементы (не в order) добавляются в конец.
+  List<ContentItem> _applyOrder(List<ContentItem> items, List<String> order) {
+    if (order.isEmpty) return items;
+    final map = {for (final i in items) i.id: i};
+    final ordered = order.where(map.containsKey).map((id) => map[id]!).toList();
+    final unordered = items.where((i) => !order.contains(i.id)).toList();
+    return [...ordered, ...unordered];
   }
 
   /// Переключает активную вкладку (аффирмации / триггеры).
@@ -100,7 +135,34 @@ class ContentLibraryCubit extends Cubit<ContentLibraryState> {
     _emitLoaded(tab: tab);
   }
 
-  /// Запускает или останавливает предпрослушивание трека.
+  /// Переставляет трек с [oldIndex] на [newIndex] и сохраняет порядок.
+  Future<void> reorderItems(int oldIndex, int newIndex) async {
+    final s = state;
+    if (s is! ContentLibraryLoaded) return;
+
+    final isAffirmation = s.activeTab == ContentTab.affirmations;
+    final list = isAffirmation ? _affirmations.toList() : _triggers.toList();
+
+    if (newIndex > oldIndex) newIndex--;
+    final item = list.removeAt(oldIndex);
+    list.insert(newIndex, item);
+
+    final newOrder = list.map((i) => i.id).toList();
+
+    if (isAffirmation) {
+      _affirmations = list;
+      _affirmationsOrder = newOrder;
+      await _prefs?.setStringList(_affirmationsOrderKey, newOrder);
+    } else {
+      _triggers = list;
+      _triggersOrder = newOrder;
+      await _prefs?.setStringList(_triggersOrderKey, newOrder);
+    }
+
+    _emitLoaded();
+  }
+
+  /// Запускает предпрослушивание трека.
   Future<void> playItem(String itemId) async {
     final s = state;
     if (s is! ContentLibraryLoaded) return;
@@ -116,10 +178,17 @@ class ContentLibraryCubit extends Cubit<ContentLibraryState> {
     if (item?.audioSource is! OwnRecording) return;
 
     final path = (item!.audioSource as OwnRecording).localPath;
-    await _player.stop();
-    await _player.setFilePath(path);
-    await _player.play();
+
+    // Сразу обновляем UI — кнопка меняется до начала воспроизведения
     _emitLoaded(playingId: itemId);
+
+    try {
+      await _player.stop();
+      await _player.setFilePath(path);
+      await _player.play();
+    } catch (_) {
+      _emitLoaded(clearPlaying: true);
+    }
   }
 
   /// Останавливает предпрослушивание.
@@ -225,6 +294,7 @@ class ContentLibraryCubit extends Cubit<ContentLibraryState> {
     await _triggersSub?.cancel();
     await _playlistSub?.cancel();
     await _scheduleSub?.cancel();
+    await _playerStateSub?.cancel();
     await _player.dispose();
     return super.close();
   }
