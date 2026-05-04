@@ -1,7 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart' as material;
 import 'package:flutter/material.dart' hide TimeOfDay;
+import '../../../core/di/injection.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../domain/entities/content_item.dart';
+import '../../../domain/entities/content_type.dart';
 import '../../../domain/entities/sleep_schedule.dart';
+import '../../../domain/usecases/content/content_usecases.dart';
 
 // ─── Модель модуля таймлайна ──────────────────────────────────────────────────
 
@@ -9,16 +14,19 @@ enum RemModuleType { trigger, affirmation }
 
 class RemModule {
   final RemModuleType type;
+  final ContentItem? contentItem;
 
   /// Пауза перед воспроизведением этого модуля, в секундах.
   final int delaySeconds;
 
-  const RemModule({required this.type, this.delaySeconds = 0});
+  const RemModule({required this.type, this.contentItem, this.delaySeconds = 0});
 
-  RemModule copyWith({RemModuleType? type, int? delaySeconds}) => RemModule(
-    type: type ?? this.type,
-    delaySeconds: delaySeconds ?? this.delaySeconds,
-  );
+  RemModule copyWith({RemModuleType? type, ContentItem? contentItem, int? delaySeconds}) =>
+      RemModule(
+        type: type ?? this.type,
+        contentItem: contentItem ?? this.contentItem,
+        delaySeconds: delaySeconds ?? this.delaySeconds,
+      );
 }
 
 // ─── Стартовая задержка цикла ─────────────────────────────────────────────────
@@ -321,14 +329,14 @@ class RemTimeline extends StatelessWidget {
                       Expanded(
                         child: _AddButton(
                           type: RemModuleType.trigger,
-                          onTap: () => _addModule(RemModuleType.trigger),
+                          onTap: () => _addModule(context, RemModuleType.trigger),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: _AddButton(
                           type: RemModuleType.affirmation,
-                          onTap: () => _addModule(RemModuleType.affirmation),
+                          onTap: () => _addModule(context, RemModuleType.affirmation),
                         ),
                       ),
                     ],
@@ -393,7 +401,7 @@ class RemTimeline extends StatelessWidget {
                     child: _AddButton(
                       type: RemModuleType.trigger,
                       compact: true,
-                      onTap: () => _addModule(RemModuleType.trigger),
+                      onTap: () => _addModule(context, RemModuleType.trigger),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -401,7 +409,7 @@ class RemTimeline extends StatelessWidget {
                     child: _AddButton(
                       type: RemModuleType.affirmation,
                       compact: true,
-                      onTap: () => _addModule(RemModuleType.affirmation),
+                      onTap: () => _addModule(context, RemModuleType.affirmation),
                     ),
                   ),
                 ],
@@ -413,9 +421,17 @@ class RemTimeline extends StatelessWidget {
     );
   }
 
-  void _addModule(RemModuleType type) {
+  /// Открывает пикер треков и добавляет выбранный модуль.
+  Future<void> _addModule(BuildContext context, RemModuleType type) async {
+    final item = await showModalBottomSheet<ContentItem>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ContentPickerSheet(type: type),
+    );
+    if (item == null) return;
     final updated = List<RemModule>.from(config.modules)
-      ..add(RemModule(type: type, delaySeconds: 30));
+      ..add(RemModule(type: type, contentItem: item, delaySeconds: 30));
     onConfigChanged(config.copyWith(modules: updated));
   }
 }
@@ -676,8 +692,13 @@ class _ModulePill extends StatelessWidget {
         ? AppColors.lucid.withValues(alpha: 0.2)
         : AppColors.dream.withValues(alpha: 0.2);
     final textColor = isTrigger ? AppColors.lucid : AppColors.dream;
-    final label = isTrigger ? 'Триггер' : 'Аффирмация';
+    final typeLabel = isTrigger ? 'Триггер' : 'Аффирмация';
     final icon = isTrigger ? Icons.psychology_outlined : Icons.star_outline;
+    final title = module.contentItem?.title ?? typeLabel;
+    final duration = module.contentItem?.audioDuration;
+    final durationLabel = duration != null
+        ? (duration.inSeconds < 60 ? '${duration.inSeconds}с' : '${duration.inMinutes}м')
+        : '—';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -695,16 +716,19 @@ class _ModulePill extends StatelessWidget {
             child: Icon(icon, size: 12, color: textColor),
           ),
           const SizedBox(width: 8),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: material.FontWeight.w500,
-              color: textColor,
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: material.FontWeight.w500,
+                color: textColor,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          const Spacer(),
-          const Text('30с', style: TextStyle(fontSize: 10, color: AppColors.textTertiary)),
+          Text(durationLabel, style: const TextStyle(fontSize: 10, color: AppColors.textTertiary)),
           const SizedBox(width: 8),
           GestureDetector(
             onTap: onDelete,
@@ -822,6 +846,142 @@ class _AddButton extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Пикер треков ─────────────────────────────────────────────────────────────
+
+/// Bottom sheet для выбора конкретного трека (триггера или аффирмации).
+class _ContentPickerSheet extends StatefulWidget {
+  final RemModuleType type;
+
+  const _ContentPickerSheet({required this.type});
+
+  @override
+  State<_ContentPickerSheet> createState() => _ContentPickerSheetState();
+}
+
+class _ContentPickerSheetState extends State<_ContentPickerSheet> {
+  StreamSubscription<List<ContentItem>>? _sub;
+  List<ContentItem> _items = [];
+
+  @override
+  void initState() {
+    super.initState();
+    final filterType = widget.type == RemModuleType.trigger
+        ? const ContentType.lucidTrigger(technique: TriggerTechnique.mild)
+        : const ContentType.affirmation(category: AffirmationCategory.custom);
+    _sub = sl<GetContentItemsUseCase>()(filterType: filterType).listen(
+      (items) => setState(() => _items = items),
+    );
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isTrigger = widget.type == RemModuleType.trigger;
+    final color = isTrigger ? AppColors.lucid : AppColors.dream;
+    final title = isTrigger ? 'Выберите триггер' : 'Выберите аффирмацию';
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Ручка
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: material.FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (_items.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text(
+                  isTrigger ? 'Нет триггеров. Запишите их в библиотеке.' : 'Нет аффирмаций. Запишите их в библиотеке.',
+                  style: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
+                  textAlign: material.TextAlign.center,
+                ),
+              ),
+            )
+          else
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.5,
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: _items.length,
+                separatorBuilder: (_, __) => const Divider(height: 0.5, color: AppColors.border),
+                itemBuilder: (context, i) {
+                  final item = _items[i];
+                  final hasDuration = item.audioDuration != null;
+                  final durationLabel = hasDuration
+                      ? (item.audioDuration!.inSeconds < 60
+                          ? '${item.audioDuration!.inSeconds}с'
+                          : '${item.audioDuration!.inMinutes}м')
+                      : 'нет аудио';
+
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    leading: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        isTrigger ? Icons.psychology_outlined : Icons.star_outline,
+                        size: 18,
+                        color: color,
+                      ),
+                    ),
+                    title: Text(
+                      item.title,
+                      style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                    ),
+                    trailing: Text(
+                      durationLabel,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: hasDuration ? AppColors.textSecondary : AppColors.textTertiary,
+                      ),
+                    ),
+                    onTap: item.hasAudio ? () => Navigator.of(context).pop(item) : null,
+                  );
+                },
+              ),
+            ),
+        ],
       ),
     );
   }
