@@ -6,10 +6,8 @@ import '../../../../domain/entities/content_item.dart';
 import '../../../../domain/entities/content_type.dart';
 import '../../../../domain/entities/audio_source.dart';
 import '../../../../domain/entities/night_playlist.dart';
-import '../../../../domain/entities/sleep_schedule.dart';
 import '../../../../domain/usecases/content/content_usecases.dart';
 import '../../../../domain/usecases/playlist/playlist_usecases.dart';
-import '../../../../domain/usecases/schedule/schedule_usecases.dart';
 import 'content_library_state.dart';
 
 class ContentLibraryCubit extends Cubit<ContentLibraryState> {
@@ -19,14 +17,11 @@ class ContentLibraryCubit extends Cubit<ContentLibraryState> {
   final RemoveFromPlaylistUseCase _removeFromPlaylist;
   final WatchPlaylistUseCase _watchPlaylist;
   final UpdatePlaylistSettingsUseCase _updatePlaylistSettings;
-  final GetSleepScheduleUseCase _getSchedule;
-  final SaveSleepScheduleUseCase _saveSchedule;
   final AudioPlayer _player = AudioPlayer();
 
   StreamSubscription<List<ContentItem>>? _affirmationsSub;
   StreamSubscription<List<ContentItem>>? _triggersSub;
   StreamSubscription<NightPlaylist?>? _playlistSub;
-  StreamSubscription<SleepSchedule?>? _scheduleSub;
   StreamSubscription<PlayerState>? _playerStateSub;
 
   static const _affirmationsOrderKey = 'content_order_affirmations';
@@ -41,9 +36,6 @@ class ContentLibraryCubit extends Cubit<ContentLibraryState> {
   Set<String> _playlistIds = {};
   double _affirmationVolume = 0.3;
   double _triggerVolume = 0.45;
-  SchedulePlaybackMode _affirmationPlaybackMode = SchedulePlaybackMode.fullPhase;
-  SchedulePlaybackMode _triggerPlaybackMode = SchedulePlaybackMode.midPhase3x;
-  SleepSchedule? _currentSchedule;
 
   ContentLibraryCubit({
     required GetContentItemsUseCase getItems,
@@ -52,16 +44,12 @@ class ContentLibraryCubit extends Cubit<ContentLibraryState> {
     required RemoveFromPlaylistUseCase removeFromPlaylist,
     required WatchPlaylistUseCase watchPlaylist,
     required UpdatePlaylistSettingsUseCase updatePlaylistSettings,
-    required GetSleepScheduleUseCase getSchedule,
-    required SaveSleepScheduleUseCase saveSchedule,
   })  : _getItems = getItems,
         _deleteItem = deleteItem,
         _addToPlaylist = addToPlaylist,
         _removeFromPlaylist = removeFromPlaylist,
         _watchPlaylist = watchPlaylist,
         _updatePlaylistSettings = updatePlaylistSettings,
-        _getSchedule = getSchedule,
-        _saveSchedule = saveSchedule,
         super(const ContentLibraryLoading(ContentTab.affirmations));
 
   @override
@@ -100,15 +88,6 @@ class ContentLibraryCubit extends Cubit<ContentLibraryState> {
       _playlistIds = playlist?.entries.map((e) => e.contentItemId).toSet() ?? {};
       _affirmationVolume = playlist?.affirmationVolume ?? 0.3;
       _triggerVolume = playlist?.triggerVolume ?? 0.45;
-      _emitLoaded();
-    });
-
-    _scheduleSub = _getSchedule().listen((schedule) {
-      _currentSchedule = schedule;
-      if (schedule != null) {
-        _affirmationPlaybackMode = schedule.affirmationPlaybackMode;
-        _triggerPlaybackMode = schedule.triggerPlaybackMode;
-      }
       _emitLoaded();
     });
 
@@ -226,46 +205,6 @@ class ContentLibraryCubit extends Cubit<ContentLibraryState> {
     await _updatePlaylistSettings(triggerVolume: volume);
   }
 
-  /// Обновляет режим воспроизведения аффирмаций и сохраняет в расписание.
-  Future<void> updateAffirmationPlaybackMode(SchedulePlaybackMode mode) async {
-    _affirmationPlaybackMode = mode;
-    _emitLoaded();
-    final schedule = _currentSchedule;
-    if (schedule == null) return;
-    await _saveSchedule(SleepSchedule(
-      id: schedule.id,
-      bedTime: schedule.bedTime,
-      wakeTime: schedule.wakeTime,
-      activeDays: schedule.activeDays,
-      targetCycles: schedule.targetCycles,
-      affirmationPlaybackMode: mode,
-      triggerPlaybackMode: schedule.triggerPlaybackMode,
-      isActive: schedule.isActive,
-      wbtbMode: schedule.wbtbMode,
-      wbtbAwakeMins: schedule.wbtbAwakeMins,
-    ));
-  }
-
-  /// Обновляет режим воспроизведения триггеров и сохраняет в расписание.
-  Future<void> updateTriggerPlaybackMode(SchedulePlaybackMode mode) async {
-    _triggerPlaybackMode = mode;
-    _emitLoaded();
-    final schedule = _currentSchedule;
-    if (schedule == null) return;
-    await _saveSchedule(SleepSchedule(
-      id: schedule.id,
-      bedTime: schedule.bedTime,
-      wakeTime: schedule.wakeTime,
-      activeDays: schedule.activeDays,
-      targetCycles: schedule.targetCycles,
-      affirmationPlaybackMode: schedule.affirmationPlaybackMode,
-      triggerPlaybackMode: mode,
-      isActive: schedule.isActive,
-      wbtbMode: schedule.wbtbMode,
-      wbtbAwakeMins: schedule.wbtbAwakeMins,
-    ));
-  }
-
   String? get playingItemId {
     final s = state;
     return s is ContentLibraryLoaded ? s.playingItemId : null;
@@ -283,8 +222,6 @@ class ContentLibraryCubit extends Cubit<ContentLibraryState> {
       playlistItemIds: _playlistIds,
       affirmationVolume: _affirmationVolume,
       triggerVolume: _triggerVolume,
-      affirmationPlaybackMode: _affirmationPlaybackMode,
-      triggerPlaybackMode: _triggerPlaybackMode,
     ));
   }
 
@@ -293,7 +230,6 @@ class ContentLibraryCubit extends Cubit<ContentLibraryState> {
     await _affirmationsSub?.cancel();
     await _triggersSub?.cancel();
     await _playlistSub?.cancel();
-    await _scheduleSub?.cancel();
     await _playerStateSub?.cancel();
     await _player.dispose();
     return super.close();

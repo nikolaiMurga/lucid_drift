@@ -16,10 +16,6 @@ class SleepScheduleModel {
   late int wakeTimeHour;
   late int wakeTimeMinute;
   late List<int> targetCycleIndices;
-  /// Индекс SchedulePlaybackMode для аффирмаций (фазы 1–3).
-  late int affirmationPlaybackModeIndex;
-  /// Индекс SchedulePlaybackMode для триггеров (фазы 4–5). По умолчанию midPhase3x (1).
-  late int triggerPlaybackModeIndex;
   late bool isActive;
   late List<int> activeDays;
   late bool wbtbMode;
@@ -40,8 +36,6 @@ class SleepScheduleModel {
               .toList();
           return cycles.isEmpty ? [SleepCycle.fourth] : cycles;
         }(),
-        affirmationPlaybackMode: SchedulePlaybackMode.values[affirmationPlaybackModeIndex.clamp(0, SchedulePlaybackMode.values.length - 1)],
-        triggerPlaybackMode: SchedulePlaybackMode.values[triggerPlaybackModeIndex.clamp(0, SchedulePlaybackMode.values.length - 1)],
         isActive: isActive,
         activeDays: activeDays,
         wbtbMode: wbtbMode,
@@ -75,8 +69,6 @@ class SleepScheduleModel {
         ..wakeTimeHour = s.wakeTime.hour
         ..wakeTimeMinute = s.wakeTime.minute
         ..targetCycleIndices = s.targetCycles.map((c) => c.index).toList()
-        ..affirmationPlaybackModeIndex = s.affirmationPlaybackMode.index
-        ..triggerPlaybackModeIndex = s.triggerPlaybackMode.index
         ..isActive = s.isActive
         ..activeDays = s.activeDays
         ..wbtbMode = s.wbtbMode

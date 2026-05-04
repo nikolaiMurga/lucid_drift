@@ -7,7 +7,6 @@ import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/content_item.dart';
 import '../../../domain/entities/content_type.dart';
-import '../../../domain/entities/sleep_schedule.dart';
 import '../../../domain/usecases/content/content_usecases.dart';
 import '../cubit/content_library_cubit.dart';
 import '../cubit/content_library_state.dart';
@@ -26,8 +25,6 @@ class ContentLibraryScreen extends StatelessWidget {
         removeFromPlaylist: sl(),
         watchPlaylist: sl(),
         updatePlaylistSettings: sl(),
-        getSchedule: sl(),
-        saveSchedule: sl(),
       )..init(),
       child: const _ContentLibraryView(),
     );
@@ -167,7 +164,6 @@ class _SettingsPanel extends StatelessWidget {
     final isAffirmation = state.activeTab == ContentTab.affirmations;
     final color = isAffirmation ? AppColors.affirmation : AppColors.lucid;
     final volume = isAffirmation ? state.affirmationVolume : state.triggerVolume;
-    final playbackMode = isAffirmation ? state.affirmationPlaybackMode : state.triggerPlaybackMode;
     final cubit = context.read<ContentLibraryCubit>();
 
     return Container(
@@ -203,74 +199,6 @@ class _SettingsPanel extends StatelessWidget {
             onChanged: isAffirmation
                 ? (v) => cubit.updateAffirmationVolume(v)
                 : (v) => cubit.updateTriggerVolume(v),
-          ),
-          const Padding(
-            padding: EdgeInsets.only(top: 4, bottom: 8),
-            child: Divider(height: 1, color: AppColors.border),
-          ),
-          // Режим воспроизведения
-          const Text(
-            'РЕЖИМ',
-            style: TextStyle(fontSize: 11, letterSpacing: 0.5, color: AppColors.textTertiary, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: SchedulePlaybackMode.values.map((mode) {
-              final isSelected = playbackMode == mode;
-              final label = switch (mode) {
-                SchedulePlaybackMode.fullPhase  => 'Вся фаза',
-                SchedulePlaybackMode.midPhase3x => 'Середина × 3',
-              };
-              final sublabel = switch (mode) {
-                SchedulePlaybackMode.fullPhase  => 'Тихий фон',
-                SchedulePlaybackMode.midPhase3x => 'Точечный сигнал',
-              };
-              final icon = switch (mode) {
-                SchedulePlaybackMode.fullPhase  => Icons.waves_outlined,
-                SchedulePlaybackMode.midPhase3x => Icons.flash_on_outlined,
-              };
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => isAffirmation
-                      ? cubit.updateAffirmationPlaybackMode(mode)
-                      : cubit.updateTriggerPlaybackMode(mode),
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected ? color.withValues(alpha: 0.12) : Colors.transparent,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: isSelected ? color.withValues(alpha: 0.5) : AppColors.border),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(icon, size: 14, color: isSelected ? color : AppColors.textTertiary),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                label,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: isSelected ? color : AppColors.textPrimary,
-                                ),
-                              ),
-                              Text(
-                                sublabel,
-                                style: const TextStyle(fontSize: 10, color: AppColors.textTertiary),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
           ),
         ],
       ),

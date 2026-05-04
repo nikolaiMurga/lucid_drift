@@ -7,7 +7,7 @@ import 'package:isar/isar.dart';
 
 import '../../data/models/content_item_model.dart';
 import '../../data/models/night_playlist_model.dart' hide fastHash;
-import '../../domain/entities/sleep_schedule.dart';
+import '../../domain/entities/sleep_schedule.dart' show SleepCycle, SleepCycleExt;
 
 /// Результат воспроизведения — передаётся в RemTriggerService для лога
 class PlaybackResult {
@@ -30,15 +30,11 @@ class NightAudioPlayer {
   final AudioPlayer _player = AudioPlayer();
   bool _stopped = false;
 
-  /// Запускает воспроизведение плейлиста в заданном режиме.
-  /// Работает в фоновом изоляте — читает Isar напрямую.
-  ///
-  /// [cycle] — целевой цикл сна (определяет длительность REM).
-  /// [scheduleMode] — fullPhase: петля до конца окна; midPhase3x: ждём середины, потом 3 прохода.
+  /// Запускает воспроизведение плейлиста в фоновом изоляте.
+  /// Проигрывает очередь в цикле на всё REM-окно (+10 мин).
   Future<PlaybackResult?> play(
     Isar isar, {
     required SleepCycle cycle,
-    required SchedulePlaybackMode scheduleMode,
   }) async {
     // 1. Читаем плейлист
     final playlistModel = await _loadPlaylist(isar);
@@ -51,7 +47,7 @@ class NightAudioPlayer {
       return null;
     }
     debugPrint('[NightAudioPlayer] Плейлист загружен: ${playlistModel.entryItemIds.length} треков. '
-        'Режим: $scheduleMode, цикл: $cycle (REM ${cycle.remDurationMinutes} мин).');
+        'Цикл: $cycle (REM ${cycle.remDurationMinutes} мин).');
 
     // 2. Конфигурируем аудио-сессию
     await _configureAudioSession();
@@ -69,31 +65,13 @@ class NightAudioPlayer {
     int triggersPlayed = 0;
     Duration totalDuration = Duration.zero;
 
-    // 4. Выбираем стратегию воспроизведения
-    switch (scheduleMode) {
-      case SchedulePlaybackMode.fullPhase:
-        // Воспроизводим в цикле всё REM-окно + 10 мин (мягкий фон для аффирмаций)
-        final deadline = startedAt.add(Duration(minutes: cycle.remDurationMinutes + 10));
-        while (!_stopped && DateTime.now().isBefore(deadline)) {
-          final r = await _playQueueOnce(queue, playlistModel);
-          affirmationsPlayed += r.affirmations;
-          triggersPlayed += r.triggers;
-          totalDuration += r.duration;
-        }
-
-      case SchedulePlaybackMode.midPhase3x:
-        // Ждём середины REM-окна, затем 3 прохода (точечный сигнал для триггеров)
-        final waitMins = cycle.remDurationMinutes ~/ 2;
-        debugPrint('[NightAudioPlayer] midPhase3x: ждём $waitMins мин до середины REM.');
-        await Future.delayed(Duration(minutes: waitMins));
-        if (_stopped) break;
-        for (int i = 0; i < 3 && !_stopped; i++) {
-          debugPrint('[NightAudioPlayer] midPhase3x: проход ${i + 1}/3.');
-          final r = await _playQueueOnce(queue, playlistModel);
-          affirmationsPlayed += r.affirmations;
-          triggersPlayed += r.triggers;
-          totalDuration += r.duration;
-        }
+    // 4. Воспроизводим в цикле на всё REM-окно + 10 мин
+    final deadline = startedAt.add(Duration(minutes: cycle.remDurationMinutes + 10));
+    while (!_stopped && DateTime.now().isBefore(deadline)) {
+      final r = await _playQueueOnce(queue, playlistModel);
+      affirmationsPlayed += r.affirmations;
+      triggersPlayed += r.triggers;
+      totalDuration += r.duration;
     }
 
     await _player.stop();

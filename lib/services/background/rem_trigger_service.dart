@@ -113,13 +113,9 @@ Future<void> _checkAndFire(ServiceInstance service, Isar isar) async {
   // Ищем цикл, чьё время совпадает с текущей минутой
   SleepCycle? matchingCycle;
   for (final cycle in schedule.targetCycles) {
-    final offset = switch (schedule.modeForCycle(cycle)) {
-      SchedulePlaybackMode.fullPhase  => -10,
-      SchedulePlaybackMode.midPhase3x => 0,
-    };
     final bed = DateTime(sleepDate.year, sleepDate.month, sleepDate.day,
         schedule.bedTime.hour, schedule.bedTime.minute);
-    final triggerTime = bed.add(Duration(minutes: cycle.minutesFromBed + offset));
+    final triggerTime = bed.add(Duration(minutes: cycle.minutesFromBed));
 
     if (now.year  == triggerTime.year  &&
         now.month == triggerTime.month &&
@@ -163,11 +159,7 @@ Future<NightAudioPlayer?> _fireSequence(ServiceInstance service, Isar isar, Slee
   // 4. Воспроизводим плейлист в нужном режиме
   final effectiveCycle = cycle ?? schedule.targetCycles.first;
   final player = NightAudioPlayer();
-  final result = await player.play(
-    isar,
-    cycle: effectiveCycle,
-    scheduleMode: schedule.modeForCycle(effectiveCycle),
-  );
+  final result = await player.play(isar, cycle: effectiveCycle);
 
   // 5. Убираем уведомление о воспроизведении
   await NotificationService.cancel(NotificationIds.triggerFired);
