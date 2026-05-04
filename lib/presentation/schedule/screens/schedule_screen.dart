@@ -130,6 +130,12 @@ class _ScheduleBody extends StatelessWidget {
         _TriggerActivationCard(state: state),
         const SizedBox(height: 20),
 
+        // ── Дни ───────────────────────────────────────────────────────────
+        const _SectionLabel('Активные дни'),
+        const SizedBox(height: 8),
+        _DaySelector(activeDays: s.activeDays, onToggle: (d) => context.read<ScheduleCubit>().toggleDay(d)),
+        const SizedBox(height: 20),
+
         // ── Время ─────────────────────────────────────────────────────────
         const _SectionLabel('Время сна'),
         const SizedBox(height: 8),
@@ -162,12 +168,6 @@ class _ScheduleBody extends StatelessWidget {
         const _SectionLabel('REM-циклы'),
         const SizedBox(height: 8),
         CycleSelector(bedTime: s.bedTime),
-        const SizedBox(height: 16),
-
-        // ── Дни ───────────────────────────────────────────────────────────
-        const _SectionLabel('Активные дни'),
-        const SizedBox(height: 8),
-        _DaySelector(activeDays: s.activeDays, onToggle: (d) => context.read<ScheduleCubit>().toggleDay(d)),
         const SizedBox(height: 20),
 
         // ── WBTB ──────────────────────────────────────────────────────────
