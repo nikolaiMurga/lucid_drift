@@ -7,7 +7,7 @@ import '../../../domain/entities/sleep_schedule.dart';
 import '../../../domain/entities/sleep_session.dart';
 import '../cubit/schedule_cubit.dart';
 import '../cubit/schedule_state.dart';
-import '../widgets/rem_timeline.dart';
+import '../widgets/rem_timeline.dart' show CycleSelector;
 
 class ScheduleScreen extends StatelessWidget {
   const ScheduleScreen({super.key});
@@ -158,18 +158,10 @@ class _ScheduleBody extends StatelessWidget {
         ),
         const SizedBox(height: 20),
 
-        // ── Таймлайн ──────────────────────────────────────────────────────
-        const _SectionLabel('Фазы сна'),
+        // ── REM-циклы + таймлайн ──────────────────────────────────────────
+        const _SectionLabel('REM-циклы'),
         const SizedBox(height: 8),
-        RemTimeline(schedule: s, remWindows: state.remWindows),
-        const SizedBox(height: 20),
-
-        // ── Цикл ──────────────────────────────────────────────────────────
-        const _SectionLabel('Целевой REM-цикл'),
-        const SizedBox(height: 4),
-        Text('Триггер: ${_fmtDt(state.triggerAt)}', style: const TextStyle(fontSize: 12, color: AppColors.lucid)),
-        const SizedBox(height: 10),
-        _CycleSelector(selected: s.targetCycles, bedTime: s.bedTime, onToggle: (c) => context.read<ScheduleCubit>().toggleTargetCycle(c)),
+        CycleSelector(bedTime: s.bedTime),
         const SizedBox(height: 16),
 
         // ── Дни ───────────────────────────────────────────────────────────
@@ -236,7 +228,7 @@ class _ScheduleBody extends StatelessWidget {
     );
   }
 
-  String _fmtDt(DateTime dt) => '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+
 }
 
 // ─── Trigger activation card ──────────────────────────────────────────────────
@@ -313,29 +305,29 @@ class _TriggerActivationCard extends StatelessWidget {
               ),
             )
           else ...[
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.dream, padding: const EdgeInsets.symmetric(vertical: 12)),
-                onPressed: state.schedule.isActive ? () => context.read<ScheduleCubit>().activateTrigger() : null,
-                icon: const Icon(Icons.play_arrow, color: AppColors.textPrimary),
-                label: const Text('Активировать', style: TextStyle(color: AppColors.textPrimary)),
-              ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.textSecondary),
-                  foregroundColor: AppColors.textSecondary,
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.dream, padding: const EdgeInsets.symmetric(vertical: 12)),
+                  onPressed: state.schedule.isActive ? () => context.read<ScheduleCubit>().activateTrigger() : null,
+                  icon: const Icon(Icons.play_arrow, color: AppColors.textPrimary),
+                  label: const Text('Активировать', style: TextStyle(color: AppColors.textPrimary)),
                 ),
-                onPressed: () => context.read<ScheduleCubit>().testTriggerNow(),
-                icon: const Icon(Icons.science_outlined, size: 18),
-                label: const Text('Тест триггера сейчас'),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.textSecondary),
+                    foregroundColor: AppColors.textSecondary,
+                  ),
+                  onPressed: () => context.read<ScheduleCubit>().testTriggerNow(),
+                  icon: const Icon(Icons.science_outlined, size: 18),
+                  label: const Text('Тест триггера сейчас'),
+                ),
+              ),
+            ],
         ],
       ),
     );
@@ -396,7 +388,7 @@ class _DebriefCardState extends State<_DebriefCard> {
           const SizedBox(height: 4),
           Text(
             'Аффирмаций: ${widget.session.affirmationsPlayedCount}  ·  '
-            'Триггеров: ${widget.session.triggersPlayedCount}',
+                'Триггеров: ${widget.session.triggersPlayedCount}',
             style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
           ),
           const SizedBox(height: 14),
@@ -551,102 +543,7 @@ class _TimeCard extends StatelessWidget {
   }
 }
 
-class _CycleSelector extends StatelessWidget {
-  final List<SleepCycle> selected;
-  final TimeOfDay bedTime;
-  final ValueChanged<SleepCycle> onToggle;
 
-  const _CycleSelector({required this.selected, required this.bedTime, required this.onToggle});
-
-  /// Строит колонку: ряд кнопок циклов с разделителем + легенда цветов.
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            // Фазы аффирмаций (1–3)
-            ...SleepCycle.values.where((c) => c.isAffirmationPhase).map((cycle) => _buildChip(cycle, onToggle)),
-            // Визуальный разделитель между аффирмациями и триггерами
-            Container(
-              width: 1,
-              height: 48,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              color: AppColors.border,
-            ),
-            // Фазы триггеров (4–5)
-            ...SleepCycle.values.where((c) => c.isTriggerPhase).map((cycle) => _buildChip(cycle, onToggle)),
-          ],
-        ),
-        const Padding(
-          padding: EdgeInsets.only(top: 6),
-          child: Row(
-            children: [
-              Icon(Icons.star_outline, size: 10, color: AppColors.dream),
-              Padding(
-                padding: EdgeInsets.only(left: 4),
-                child: Text('Аффирмации', style: TextStyle(fontSize: 10, color: AppColors.dream)),
-              ),
-              Padding(
-                padding: EdgeInsets.only(left: 16),
-                child: Icon(Icons.psychology_outlined, size: 10, color: AppColors.lucid),
-              ),
-              Padding(
-                padding: EdgeInsets.only(left: 4),
-                child: Text('Триггеры', style: TextStyle(fontSize: 10, color: AppColors.lucid)),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Строит одну кнопку цикла с номером и временем.
-  Widget _buildChip(SleepCycle cycle, ValueChanged<SleepCycle> onToggle) {
-    final isSelected = selected.contains(cycle);
-    final isAffirmation = cycle.isAffirmationPhase;
-    final activeColor = isAffirmation ? AppColors.dream : AppColors.lucid;
-
-    final totalMins = bedTime.hour * 60 + bedTime.minute + cycle.minutesFromBed;
-    final h = (totalMins ~/ 60) % 24;
-    final m = totalMins % 60;
-    final timeLabel = '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
-    final cycleNum = cycle.index + 1;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => onToggle(cycle),
-        child: Container(
-          margin: const EdgeInsets.only(right: 4),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected ? activeColor.withValues(alpha: 0.15) : AppColors.surface,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: isSelected ? activeColor : AppColors.border),
-          ),
-          child: Column(
-            children: [
-              Text(
-                '$cycleNum',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: material.FontWeight.w300,
-                  color: isSelected ? activeColor : AppColors.textSecondary,
-                ),
-              ),
-              Text(
-                timeLabel,
-                style: TextStyle(fontSize: 10, color: isSelected ? activeColor : AppColors.textTertiary),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 
 class _DaySelector extends StatelessWidget {
