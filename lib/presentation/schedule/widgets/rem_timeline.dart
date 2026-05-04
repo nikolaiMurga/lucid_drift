@@ -52,11 +52,15 @@ class CycleSelector extends StatefulWidget {
 }
 
 class _CycleSelectorState extends State<CycleSelector> {
-  /// Множество активных индексов (0-based). Каждый чип — независимый свич.
-  final Set<int> _activeIndices = {};
+  /// Выбранный чип — чей таймлайн показывать. По умолчанию первый доступный (2).
+  /// Выбранный чип (чей таймлайн показывать). Тап переключает.
+  /// Чип зелёный = есть модули. Серый = пустой таймлайн.
+  int _selectedIndex = 2;
 
   /// Конфигурация каждого из 5 циклов.
   final List<_CycleConfig> _configs = List.generate(5, (_) => const _CycleConfig());
+
+  bool _hasModules(int i) => _configs[i].modules.isNotEmpty;
 
   String _chipTime(int i) {
     final totalMins = widget.bedTime.hour * 60 + widget.bedTime.minute + _cycleMinutesFromBed(i);
@@ -72,9 +76,7 @@ class _CycleSelectorState extends State<CycleSelector> {
       children: [
         // ── Подсказка ──────────────────────────────────────────────────────
         Text(
-          _activeIndices.isNotEmpty
-              ? 'Нажмите на цикл повторно чтобы выключить'
-              : 'Нажмите на цикл 3–5 чтобы активировать триггеры',
+          'Нажмите на цикл 3–5 чтобы настроить триггеры',
           style: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
         ),
         const SizedBox(height: 10),
@@ -84,15 +86,14 @@ class _CycleSelectorState extends State<CycleSelector> {
           children: List.generate(5, (i) {
             final cycleNum = i + 1;
             final selectable = i >= 2;
-            final isActive = _activeIndices.contains(i);
+            final isSelected = _selectedIndex == i;
+            final isActive = selectable && _hasModules(i);
             final timeLabel = _chipTime(i);
 
             return Expanded(
               child: GestureDetector(
                 onTap: selectable
-                    ? () => setState(() {
-                  isActive ? _activeIndices.remove(i) : _activeIndices.add(i);
-                })
+                    ? () => setState(() => _selectedIndex = i)
                     : null,
                 child: Container(
                   margin: const EdgeInsets.only(right: 4),
@@ -102,6 +103,8 @@ class _CycleSelectorState extends State<CycleSelector> {
                         ? AppColors.surface.withValues(alpha: 0.5)
                         : isActive
                         ? AppColors.lucid.withValues(alpha: 0.12)
+                        : isSelected
+                        ? AppColors.border.withValues(alpha: 0.3)
                         : AppColors.surface,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
@@ -109,14 +112,16 @@ class _CycleSelectorState extends State<CycleSelector> {
                           ? AppColors.border.withValues(alpha: 0.4)
                           : isActive
                           ? AppColors.lucid
+                          : isSelected
+                          ? AppColors.textTertiary
                           : AppColors.border,
-                      width: isActive ? 1.5 : 0.5,
+                      width: (isActive || isSelected) ? 1.5 : 0.5,
                     ),
                   ),
                   child: Column(
                     children: [
                       Text(
-                        '$cycleNum',
+                        cycleNum.toString(),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: material.FontWeight.w400,
@@ -153,18 +158,14 @@ class _CycleSelectorState extends State<CycleSelector> {
           }),
         ),
 
-        // ── RemTimeline под каждым активным циклом ─────────────────────
-        for (final i in [2, 3, 4]) ...[
-          if (_activeIndices.contains(i)) ...[
-            const SizedBox(height: 12),
-            RemTimeline(
-              cycleIndex: i,
-              bedTime: widget.bedTime,
-              config: _configs[i],
-              onConfigChanged: (updated) => setState(() => _configs[i] = updated),
-            ),
-          ],
-        ],
+        // ── Один таймлайн — всегда виден, показывает выбранный цикл ───────
+        const SizedBox(height: 12),
+        RemTimeline(
+          cycleIndex: _selectedIndex,
+          bedTime: widget.bedTime,
+          config: _configs[_selectedIndex],
+          onConfigChanged: (updated) => setState(() => _configs[_selectedIndex] = updated),
+        ),
       ],
     );
   }
@@ -235,7 +236,7 @@ class RemTimeline extends StatelessWidget {
 
   String _fmtSec(int s) {
     if (s == 0) return '0с';
-    return s < 60 ? '$sс' : '${(s / 60).round()}м';
+    return s < 60 ? '${s}с' : '${(s / 60).round()}м';
   }
 
   @override
@@ -471,7 +472,7 @@ class _StartOffsetRow extends StatelessWidget {
             SizedBox(
               width: 28,
               child: Text(
-                offsetMins == 0 ? '0' : '$offsetMinsм',
+                offsetMins == 0 ? '0' : '${offsetMins}м',
                 textAlign: material.TextAlign.right,
                 style: const TextStyle(
                   fontSize: 11,
