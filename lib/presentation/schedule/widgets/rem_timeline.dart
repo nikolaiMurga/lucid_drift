@@ -1,74 +1,40 @@
 import 'dart:async';
 import 'package:flutter/material.dart' as material;
 import 'package:flutter/material.dart' hide TimeOfDay;
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/content_item.dart';
 import '../../../domain/entities/content_type.dart';
+import '../../../domain/entities/cycle_timeline.dart';
 import '../../../domain/entities/sleep_schedule.dart';
 import '../../../domain/usecases/content/content_usecases.dart';
-
-// ─── Модель модуля таймлайна ──────────────────────────────────────────────────
-
-enum RemModuleType { trigger, affirmation }
-
-class RemModule {
-  final RemModuleType type;
-  final ContentItem? contentItem;
-
-  /// Пауза перед воспроизведением этого модуля, в секундах.
-  final int delaySeconds;
-
-  const RemModule({required this.type, this.contentItem, this.delaySeconds = 0});
-
-  RemModule copyWith({RemModuleType? type, ContentItem? contentItem, int? delaySeconds}) =>
-      RemModule(
-        type: type ?? this.type,
-        contentItem: contentItem ?? this.contentItem,
-        delaySeconds: delaySeconds ?? this.delaySeconds,
-      );
-}
-
-// ─── Стартовая задержка цикла ─────────────────────────────────────────────────
-
-class _CycleConfig {
-  /// Задержка от старта REM-фазы до первого модуля, в минутах (0–30, шаг 5).
-  final int startOffsetMins;
-  final List<RemModule> modules;
-
-  const _CycleConfig({this.startOffsetMins = 0, this.modules = const []});
-
-  _CycleConfig copyWith({int? startOffsetMins, List<RemModule>? modules}) =>
-      _CycleConfig(
-        startOffsetMins: startOffsetMins ?? this.startOffsetMins,
-        modules: modules ?? this.modules,
-      );
-}
+import '../cubit/schedule_cubit.dart';
 
 // ─── CycleSelector ───────────────────────────────────────────────────────────
 
 /// Ряд из 5 чипов REM-циклов. Первые два — только отображение (NREM).
-/// Циклы 3–5 работают как свич: нажал — активировал, нажал снова — деактивировал.
-/// При активации открывается [RemTimeline] для этого цикла.
+/// Циклы 3–5 позволяют настраивать таймлайны. Данные хранятся в ScheduleCubit
+/// и сохраняются в SleepSchedule — не теряются при уходе со страницы.
 class CycleSelector extends StatefulWidget {
   final TimeOfDay bedTime;
+  final List<CycleConfig> cycleTimelines;
 
-  const CycleSelector({super.key, required this.bedTime});
+  const CycleSelector({
+    super.key,
+    required this.bedTime,
+    required this.cycleTimelines,
+  });
 
   @override
   State<CycleSelector> createState() => _CycleSelectorState();
 }
 
 class _CycleSelectorState extends State<CycleSelector> {
-  /// Выбранный чип — чей таймлайн показывать. По умолчанию первый доступный (2).
-  /// Выбранный чип (чей таймлайн показывать). Тап переключает.
-  /// Чип зелёный = есть модули. Серый = пустой таймлайн.
+  /// Индекс выбранного чипа (чей таймлайн показывать). По умолчанию 3-й цикл (index=2).
   int _selectedIndex = 2;
 
-  /// Конфигурация каждого из 5 циклов.
-  final List<_CycleConfig> _configs = List.generate(5, (_) => const _CycleConfig());
-
-  bool _hasModules(int i) => _configs[i].modules.isNotEmpty;
+  bool _hasModules(int i) => widget.cycleTimelines[i].modules.isNotEmpty;
 
   String _chipTime(int i) {
     final totalMins = widget.bedTime.hour * 60 + widget.bedTime.minute + _cycleMinutesFromBed(i);
@@ -82,10 +48,9 @@ class _CycleSelectorState extends State<CycleSelector> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Подсказка ──────────────────────────────────────────────────────
-        Text(
+        const Text(
           'Нажмите на цикл 3–5 чтобы настроить триггеры',
-          style: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
+          style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
         ),
         const SizedBox(height: 10),
 
@@ -171,14 +136,14 @@ class _CycleSelectorState extends State<CycleSelector> {
         RemTimeline(
           cycleIndex: _selectedIndex,
           bedTime: widget.bedTime,
-          config: _configs[_selectedIndex],
-          onConfigChanged: (updated) => setState(() => _configs[_selectedIndex] = updated),
+          config: widget.cycleTimelines[_selectedIndex],
+          onConfigChanged: (updated) =>
+              context.read<ScheduleCubit>().updateCycleTimeline(_selectedIndex, updated),
         ),
       ],
     );
   }
 
-  /// Примерное количество минут от отбоя до старта i-го REM-цикла.
   static int _cycleMinutesFromBed(int index) {
     const offsets = [90, 180, 270, 360, 450];
     return offsets[index];
@@ -219,8 +184,8 @@ class _ChipBadge extends StatelessWidget {
 class RemTimeline extends StatelessWidget {
   final int cycleIndex;
   final TimeOfDay bedTime;
-  final _CycleConfig config;
-  final ValueChanged<_CycleConfig> onConfigChanged;
+  final CycleConfig config;
+  final ValueChanged<CycleConfig> onConfigChanged;
 
   const RemTimeline({
     super.key,
@@ -230,7 +195,6 @@ class RemTimeline extends StatelessWidget {
     required this.onConfigChanged,
   });
 
-  // Время старта цикла в минутах от полуночи
   int get _cycleStartMins {
     const offsets = [90, 180, 270, 360, 450];
     return bedTime.hour * 60 + bedTime.minute + offsets[cycleIndex];
@@ -245,6 +209,7 @@ class RemTimeline extends StatelessWidget {
   String _fmtSec(int s) {
     if (s == 0) return '0с';
     return s < 60 ? '${s}с' : '${(s / 60).round()}м';
+
   }
 
   @override
@@ -350,7 +315,6 @@ class RemTimeline extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
               child: Column(
                 children: [
-                  // Плашка "Старт через"
                   _StartOffsetRow(
                     cycleTime: cycleTime,
                     offsetMins: config.startOffsetMins,
@@ -358,16 +322,14 @@ class RemTimeline extends StatelessWidget {
                     hasNext: true,
                   ),
 
-                  // Модули
                   ...List.generate(config.modules.length, (i) {
                     final mod = config.modules[i];
                     final isLast = i == config.modules.length - 1;
 
-                    // Вычисляем время этого модуля
                     int elapsed = _cycleStartMins + config.startOffsetMins;
                     for (int j = 0; j < i; j++) {
                       elapsed += (config.modules[j].delaySeconds ~/ 60);
-                      elapsed += 1; // ~30с воспроизведения ≈ 1 мин
+                      elapsed += 1;
                     }
                     elapsed += mod.delaySeconds ~/ 60;
 
@@ -530,22 +492,16 @@ class _ModuleRow extends StatelessWidget {
 
     return Column(
       children: [
-        // Слайдер паузы
         _PauseSlider(
           value: module.delaySeconds,
           label: delayLabel,
           onChanged: onDelayChanged,
         ),
-
-        // Плашка модуля
         _TlRow(
           timeLabel: timeLabel,
           dotColor: dotColor,
           hasLine: !isLast,
-          child: _ModulePill(
-            module: module,
-            onDelete: onDelete,
-          ),
+          child: _ModulePill(module: module, onDelete: onDelete),
         ),
       ],
     );
@@ -624,7 +580,6 @@ class _TlRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Время
           SizedBox(
             width: 36,
             child: Padding(
@@ -637,8 +592,6 @@ class _TlRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-
-          // Линия + точка
           SizedBox(
             width: 12,
             child: Column(
@@ -657,8 +610,6 @@ class _TlRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-
-          // Контент
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 6),
@@ -817,11 +768,7 @@ class _AddButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: AppColors.border,
-            width: 0.5,
-            // dashed не поддерживается нативно — используем обычную границу
-          ),
+          border: Border.all(color: AppColors.border, width: 0.5),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -900,7 +847,6 @@ class _ContentPickerSheetState extends State<_ContentPickerSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Ручка
           Center(
             child: Container(
               width: 36,
@@ -926,7 +872,9 @@ class _ContentPickerSheetState extends State<_ContentPickerSheet> {
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: Text(
-                  isTrigger ? 'Нет триггеров. Запишите их в библиотеке.' : 'Нет аффирмаций. Запишите их в библиотеке.',
+                  isTrigger
+                      ? 'Нет триггеров. Запишите их в библиотеке.'
+                      : 'Нет аффирмаций. Запишите их в библиотеке.',
                   style: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
                   textAlign: material.TextAlign.center,
                 ),
@@ -940,7 +888,8 @@ class _ContentPickerSheetState extends State<_ContentPickerSheet> {
               child: ListView.separated(
                 shrinkWrap: true,
                 itemCount: _items.length,
-                separatorBuilder: (_, __) => const Divider(height: 0.5, color: AppColors.border),
+                separatorBuilder: (_, __) =>
+                    const Divider(height: 0.5, color: AppColors.border),
                 itemBuilder: (context, i) {
                   final item = _items[i];
                   final hasDuration = item.audioDuration != null;
@@ -951,7 +900,8 @@ class _ContentPickerSheetState extends State<_ContentPickerSheet> {
                       : 'нет аудио';
 
                   return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                     leading: Container(
                       width: 36,
                       height: 36,
@@ -967,16 +917,21 @@ class _ContentPickerSheetState extends State<_ContentPickerSheet> {
                     ),
                     title: Text(
                       item.title,
-                      style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                      style: const TextStyle(
+                          fontSize: 14, color: AppColors.textPrimary),
                     ),
                     trailing: Text(
                       durationLabel,
                       style: TextStyle(
                         fontSize: 12,
-                        color: hasDuration ? AppColors.textSecondary : AppColors.textTertiary,
+                        color: hasDuration
+                            ? AppColors.textSecondary
+                            : AppColors.textTertiary,
                       ),
                     ),
-                    onTap: item.hasAudio ? () => Navigator.of(context).pop(item) : null,
+                    onTap: item.hasAudio
+                        ? () => Navigator.of(context).pop(item)
+                        : null,
                   );
                 },
               ),

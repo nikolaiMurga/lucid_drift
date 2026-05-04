@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart' hide TimeOfDay;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
+import '../../../domain/entities/cycle_timeline.dart';
 import '../../../domain/entities/sleep_schedule.dart';
 import '../../../domain/entities/sleep_session.dart';
 import '../../../domain/usecases/schedule/schedule_usecases.dart';
@@ -162,6 +163,14 @@ class ScheduleCubit extends Cubit<ScheduleState> {
   Future<void> updateWbtbMins(int mins) =>
       _update((s) => _rebuild(s, wbtbAwakeMins: mins));
 
+  /// Обновляет конфигурацию таймлайна одного REM-цикла и сохраняет расписание.
+  Future<void> updateCycleTimeline(int cycleIndex, CycleConfig config) =>
+      _update((s) {
+        final timelines = List<CycleConfig>.from(s.cycleTimelines);
+        timelines[cycleIndex] = config;
+        return _rebuild(s, cycleTimelines: timelines);
+      });
+
   Future<void> deleteSchedule() async {
     await _cancelTrigger();
     await _delete();
@@ -282,6 +291,7 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     List<int>? activeDays,
     bool? wbtbMode,
     int? wbtbAwakeMins,
+    List<CycleConfig>? cycleTimelines,
   }) =>
       SleepSchedule(
         id: s.id,
@@ -294,6 +304,7 @@ class ScheduleCubit extends Cubit<ScheduleState> {
         activeDays: activeDays ?? s.activeDays,
         wbtbMode: wbtbMode ?? s.wbtbMode,
         wbtbAwakeMins: wbtbAwakeMins ?? s.wbtbAwakeMins,
+        cycleTimelines: cycleTimelines ?? s.cycleTimelines,
       );
 
   Future<void> _emitLoaded(SleepSchedule schedule) async {

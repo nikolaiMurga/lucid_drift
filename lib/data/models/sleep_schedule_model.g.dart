@@ -53,28 +53,33 @@ const SleepScheduleModelSchema = CollectionSchema(
       name: r'targetCycleIndices',
       type: IsarType.longList,
     ),
-    r'triggerPlaybackModeIndex': PropertySchema(
+    r'timelinesJson': PropertySchema(
       id: 7,
+      name: r'timelinesJson',
+      type: IsarType.string,
+    ),
+    r'triggerPlaybackModeIndex': PropertySchema(
+      id: 8,
       name: r'triggerPlaybackModeIndex',
       type: IsarType.long,
     ),
     r'wakeTimeHour': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'wakeTimeHour',
       type: IsarType.long,
     ),
     r'wakeTimeMinute': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'wakeTimeMinute',
       type: IsarType.long,
     ),
     r'wbtbAwakeMins': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'wbtbAwakeMins',
       type: IsarType.long,
     ),
     r'wbtbMode': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'wbtbMode',
       type: IsarType.bool,
     )
@@ -102,6 +107,7 @@ int _sleepScheduleModelEstimateSize(
   bytesCount += 3 + object.activeDays.length * 8;
   bytesCount += 3 + object.id.length * 3;
   bytesCount += 3 + object.targetCycleIndices.length * 8;
+  bytesCount += 3 + object.timelinesJson.length * 3;
   return bytesCount;
 }
 
@@ -118,11 +124,12 @@ void _sleepScheduleModelSerialize(
   writer.writeString(offsets[4], object.id);
   writer.writeBool(offsets[5], object.isActive);
   writer.writeLongList(offsets[6], object.targetCycleIndices);
-  writer.writeLong(offsets[7], object.triggerPlaybackModeIndex);
-  writer.writeLong(offsets[8], object.wakeTimeHour);
-  writer.writeLong(offsets[9], object.wakeTimeMinute);
-  writer.writeLong(offsets[10], object.wbtbAwakeMins);
-  writer.writeBool(offsets[11], object.wbtbMode);
+  writer.writeString(offsets[7], object.timelinesJson);
+  writer.writeLong(offsets[8], object.triggerPlaybackModeIndex);
+  writer.writeLong(offsets[9], object.wakeTimeHour);
+  writer.writeLong(offsets[10], object.wakeTimeMinute);
+  writer.writeLong(offsets[11], object.wbtbAwakeMins);
+  writer.writeBool(offsets[12], object.wbtbMode);
 }
 
 SleepScheduleModel _sleepScheduleModelDeserialize(
@@ -139,11 +146,12 @@ SleepScheduleModel _sleepScheduleModelDeserialize(
   object.id = reader.readString(offsets[4]);
   object.isActive = reader.readBool(offsets[5]);
   object.targetCycleIndices = reader.readLongList(offsets[6]) ?? [];
-  object.triggerPlaybackModeIndex = reader.readLong(offsets[7]);
-  object.wakeTimeHour = reader.readLong(offsets[8]);
-  object.wakeTimeMinute = reader.readLong(offsets[9]);
-  object.wbtbAwakeMins = reader.readLong(offsets[10]);
-  object.wbtbMode = reader.readBool(offsets[11]);
+  object.timelinesJson = reader.readString(offsets[7]);
+  object.triggerPlaybackModeIndex = reader.readLong(offsets[8]);
+  object.wakeTimeHour = reader.readLong(offsets[9]);
+  object.wakeTimeMinute = reader.readLong(offsets[10]);
+  object.wbtbAwakeMins = reader.readLong(offsets[11]);
+  object.wbtbMode = reader.readBool(offsets[12]);
   return object;
 }
 
@@ -169,7 +177,7 @@ P _sleepScheduleModelDeserializeProp<P>(
     case 6:
       return (reader.readLongList(offset) ?? []) as P;
     case 7:
-      return (reader.readLong(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 8:
       return (reader.readLong(offset)) as P;
     case 9:
@@ -177,6 +185,8 @@ P _sleepScheduleModelDeserializeProp<P>(
     case 10:
       return (reader.readLong(offset)) as P;
     case 11:
+      return (reader.readLong(offset)) as P;
+    case 12:
       return (reader.readBool(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -939,6 +949,142 @@ extension SleepScheduleModelQueryFilter
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      timelinesJsonEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'timelinesJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      timelinesJsonGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'timelinesJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      timelinesJsonLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'timelinesJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      timelinesJsonBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'timelinesJson',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      timelinesJsonStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'timelinesJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      timelinesJsonEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'timelinesJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      timelinesJsonContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'timelinesJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      timelinesJsonMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'timelinesJson',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      timelinesJsonIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'timelinesJson',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
+      timelinesJsonIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'timelinesJson',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterFilterCondition>
       triggerPlaybackModeIndexEqualTo(int value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
@@ -1252,6 +1398,20 @@ extension SleepScheduleModelQuerySortBy
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
+      sortByTimelinesJson() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'timelinesJson', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
+      sortByTimelinesJsonDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'timelinesJson', Sort.desc);
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
       sortByTriggerPlaybackModeIndex() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'triggerPlaybackModeIndex', Sort.asc);
@@ -1409,6 +1569,20 @@ extension SleepScheduleModelQuerySortThenBy
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
+      thenByTimelinesJson() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'timelinesJson', Sort.asc);
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
+      thenByTimelinesJsonDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'timelinesJson', Sort.desc);
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QAfterSortBy>
       thenByTriggerPlaybackModeIndex() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'triggerPlaybackModeIndex', Sort.asc);
@@ -1531,6 +1705,14 @@ extension SleepScheduleModelQueryWhereDistinct
   }
 
   QueryBuilder<SleepScheduleModel, SleepScheduleModel, QDistinct>
+      distinctByTimelinesJson({bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'timelinesJson',
+          caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, SleepScheduleModel, QDistinct>
       distinctByTriggerPlaybackModeIndex() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'triggerPlaybackModeIndex');
@@ -1618,6 +1800,13 @@ extension SleepScheduleModelQueryProperty
       targetCycleIndicesProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'targetCycleIndices');
+    });
+  }
+
+  QueryBuilder<SleepScheduleModel, String, QQueryOperations>
+      timelinesJsonProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'timelinesJson');
     });
   }
 

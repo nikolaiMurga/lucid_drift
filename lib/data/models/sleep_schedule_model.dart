@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:isar/isar.dart';
+
+import '../../domain/entities/cycle_timeline.dart';
 import '../../domain/entities/sleep_schedule.dart';
 
 part 'sleep_schedule_model.g.dart';
@@ -22,6 +26,9 @@ class SleepScheduleModel {
   late int wbtbAwakeMins;
   late String id;
 
+  /// JSON-строка с конфигурациями таймлайнов 5 REM-циклов.
+  late String timelinesJson;
+
   /// Преобразует Isar-запись в доменную сущность.
   SleepSchedule toDomain() => SleepSchedule(
         id: id,
@@ -39,7 +46,25 @@ class SleepScheduleModel {
         activeDays: activeDays,
         wbtbMode: wbtbMode,
         wbtbAwakeMins: wbtbAwakeMins,
+        cycleTimelines: _parseTimelines(timelinesJson),
       );
+
+  /// Десериализует JSON-строку в список конфигураций таймлайнов (5 элементов).
+  static List<CycleConfig> _parseTimelines(String json) {
+    if (json.isEmpty) {
+      return List.generate(5, (_) => const CycleConfig());
+    }
+    try {
+      final list = jsonDecode(json) as List<dynamic>;
+      final configs = list
+          .map((e) => CycleConfig.fromJson(e as Map<String, dynamic>))
+          .toList();
+      while (configs.length < 5) configs.add(const CycleConfig());
+      return configs.take(5).toList();
+    } catch (_) {
+      return List.generate(5, (_) => const CycleConfig());
+    }
+  }
 
   /// Создаёт Isar-запись из доменной сущности.
   static SleepScheduleModel fromDomain(SleepSchedule s) =>
@@ -55,5 +80,7 @@ class SleepScheduleModel {
         ..isActive = s.isActive
         ..activeDays = s.activeDays
         ..wbtbMode = s.wbtbMode
-        ..wbtbAwakeMins = s.wbtbAwakeMins;
+        ..wbtbAwakeMins = s.wbtbAwakeMins
+        ..timelinesJson = jsonEncode(
+            s.cycleTimelines.map((c) => c.toJson()).toList());
 }

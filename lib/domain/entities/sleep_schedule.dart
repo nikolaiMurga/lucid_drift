@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import 'cycle_timeline.dart';
+
 /// Цикл сна: 5 циклов по ~90 мин. Первые три — фаза аффирмаций, 4–5 — триггеры.
 enum SleepCycle {
   first,   // ~1.5ч — аффирмации
@@ -49,6 +51,9 @@ class SleepSchedule extends Equatable {
   final bool wbtbMode;        // Wake Back To Bed
   final int wbtbAwakeMins;    // сколько бодрствовать при WBTB
 
+  /// Конфигурации таймлайнов для 5 REM-циклов. Сохраняются вместе с расписанием.
+  final List<CycleConfig> cycleTimelines;
+
   const SleepSchedule({
     required this.id,
     required this.bedTime,
@@ -60,6 +65,9 @@ class SleepSchedule extends Equatable {
     this.isActive = true,
     this.wbtbMode = false,
     this.wbtbAwakeMins = 30,
+    this.cycleTimelines = const [
+      CycleConfig(), CycleConfig(), CycleConfig(), CycleConfig(), CycleConfig(),
+    ],
   });
 
   /// Возвращает режим воспроизведения для заданного цикла.
@@ -108,7 +116,7 @@ class SleepSchedule extends Equatable {
   List<Object?> get props => [
     id, bedTime, wakeTime, targetCycles,
     affirmationPlaybackMode, triggerPlaybackMode,
-    isActive, activeDays, wbtbMode,
+    isActive, activeDays, wbtbMode, cycleTimelines,
   ];
 }
 

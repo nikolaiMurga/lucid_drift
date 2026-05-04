@@ -167,7 +167,10 @@ class _ScheduleBody extends StatelessWidget {
         // ── REM-циклы + таймлайн ──────────────────────────────────────────
         const _SectionLabel('REM-циклы'),
         const SizedBox(height: 8),
-        CycleSelector(bedTime: s.bedTime),
+        CycleSelector(
+          bedTime: s.bedTime,
+          cycleTimelines: s.cycleTimelines,
+        ),
         const SizedBox(height: 20),
 
         // ── WBTB ──────────────────────────────────────────────────────────
