@@ -59,7 +59,6 @@ Future<void> setupDi() async {
   sl.registerFactory(() => const CalculateRemTriggerUseCase());
 
   // ── Use Cases: Engine ─────────────────────────────────────────────────────
-  sl.registerFactory(() => ActivateTriggerUseCase(sl(), sl()));
   sl.registerFactory(() => const CancelTriggerUseCase());
   sl.registerFactory(() => GetTodaySessionUseCase(sl()));
   sl.registerFactory(() => SaveDebriefUseCase(sl()));

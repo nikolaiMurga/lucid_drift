@@ -20,7 +20,6 @@ class ScheduleScreen extends StatelessWidget {
         save: sl(),
         delete: sl(),
         calculate: sl(),
-        activate: sl(),
         cancelTrigger: sl(),
         getTodaySession: sl(),
         saveDebrief: sl(),
@@ -121,14 +120,9 @@ class _ScheduleBody extends StatelessWidget {
         // Баннер паузы
         if (!s.isActive) _PausedBanner(),
 
-        // Утренний дебриф (если триггер сработал ночью)
-        // TODO: раскомментировать когда дебриф готов
-        // if (state.todaySession?.wasTriggered == true && state.todaySession?.lucidityLevel == LucidityLevel.none)
-        //   _DebriefCard(session: state.todaySession!),
-
-        // ── Кнопка активации ──────────────────────────────────────────────
-        _TriggerActivationCard(state: state),
-        const SizedBox(height: 20),
+        // Утренний дебриф (только если пользователь тапнул уведомление)
+        if (state.showDebrief && state.todaySession != null)
+          _DebriefCard(session: state.todaySession!),
 
         // ── Дни ───────────────────────────────────────────────────────────
         const _SectionLabel('Активные дни'),
@@ -176,6 +170,18 @@ class _ScheduleBody extends StatelessWidget {
         // ── WBTB ──────────────────────────────────────────────────────────
         _WbtbSection(schedule: s),
         const SizedBox(height: 24),
+
+        // ── Тест триггера ─────────────────────────────────────────────────
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: AppColors.textSecondary),
+            foregroundColor: AppColors.textSecondary,
+          ),
+          onPressed: () => context.read<ScheduleCubit>().testTriggerNow(),
+          icon: const Icon(Icons.science_outlined, size: 18),
+          label: const Text('Тест триггера сейчас'),
+        ),
+        const SizedBox(height: 10),
 
         // ── Удалить ───────────────────────────────────────────────────────
         OutlinedButton.icon(
@@ -232,109 +238,6 @@ class _ScheduleBody extends StatelessWidget {
   }
 
 
-}
-
-// ─── Trigger activation card ──────────────────────────────────────────────────
-
-class _TriggerActivationCard extends StatelessWidget {
-  final ScheduleLoaded state;
-
-  const _TriggerActivationCard({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final isActive = state.isActive;
-    final isBusy = state.isBusy;
-    final scheduledAt = state.scheduledTriggerAt;
-
-    final Color cardColor = isActive ? AppColors.dream.withValues(alpha: 0.08) : AppColors.surface;
-    final Color borderColor = isActive ? AppColors.dream.withValues(alpha: 0.4) : AppColors.border;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(isActive ? Icons.bedtime : Icons.bedtime_outlined, size: 20, color: isActive ? AppColors.dream : AppColors.textTertiary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isActive ? 'Триггер запланирован' : 'Активировать на эту ночь',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: material.FontWeight.w500,
-                        color: isActive ? AppColors.dream : AppColors.textPrimary,
-                      ),
-                    ),
-                    if (isActive && scheduledAt != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        'Сработает в ${scheduledAt.hour.toString().padLeft(2, '0')}:${scheduledAt.minute.toString().padLeft(2, '0')}',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                      ),
-                    ] else
-                      const Text('Аффирмации начнут играть автоматически', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          if (isBusy)
-            const Center(
-              child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.dream)),
-            )
-          else if (isActive)
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.dream),
-                  foregroundColor: AppColors.dream,
-                ),
-                onPressed: () => context.read<ScheduleCubit>().cancelTrigger(),
-                icon: const Icon(Icons.cancel_outlined, size: 18),
-                label: const Text('Отменить'),
-              ),
-            )
-          else ...[
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.dream, padding: const EdgeInsets.symmetric(vertical: 12)),
-                  onPressed: state.schedule.isActive ? () => context.read<ScheduleCubit>().activateTrigger() : null,
-                  icon: const Icon(Icons.play_arrow, color: AppColors.textPrimary),
-                  label: const Text('Активировать', style: TextStyle(color: AppColors.textPrimary)),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.textSecondary),
-                    foregroundColor: AppColors.textSecondary,
-                  ),
-                  onPressed: () => context.read<ScheduleCubit>().testTriggerNow(),
-                  icon: const Icon(Icons.science_outlined, size: 18),
-                  label: const Text('Тест триггера сейчас'),
-                ),
-              ),
-            ],
-        ],
-      ),
-    );
-  }
 }
 
 // ─── Morning debrief card ─────────────────────────────────────────────────────

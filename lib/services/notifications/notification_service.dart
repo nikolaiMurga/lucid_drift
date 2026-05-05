@@ -19,13 +19,17 @@ class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
 
+  /// true если пользователь тапнул дебриф-уведомление (а не смахнул).
+  /// Читается кубитом при инициализации, после чего сбрасывается.
+  static bool debriefTapped = false;
+
+  static void clearDebriefTap() => debriefTapped = false;
+
   /// Вызывать один раз при старте приложения
   static Future<void> init() async {
     if (_initialized) return;
 
     tz_data.initializeTimeZones();
-    // tz.local остаётся UTC — это не влияет на точность,
-    // так как везде используется tz.TZDateTime.from() через epoch milliseconds.
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings(
@@ -36,13 +40,23 @@ class NotificationService {
 
     await _plugin.initialize(
       const InitializationSettings(android: android, iOS: ios),
+      onDidReceiveNotificationResponse: _onTap,
     );
 
-    // Сбрасываем закешированные уведомления при первом запуске новой версии,
-    // чтобы избежать "Missing type parameter" из-за обфускации R8 в release-билде.
+    // Проверяем был ли апп запущен тапом на уведомление (когда апп был убит)
+    final launch = await _plugin.getNotificationAppLaunchDetails();
+    if (launch?.didNotificationLaunchApp == true &&
+        launch?.notificationResponse?.id == NotificationIds.morningDebrief) {
+      debriefTapped = true;
+    }
+
     await _clearNotificationCacheOnFirstRun();
 
     _initialized = true;
+  }
+
+  static void _onTap(NotificationResponse response) {
+    if (response.id == NotificationIds.morningDebrief) debriefTapped = true;
   }
 
   /// Запрашивает разрешения (iOS + Android 13+)
@@ -63,16 +77,14 @@ class NotificationService {
   /// при десериализации устаревших данных из SharedPreferences.
   static Future<void> scheduleMorningDebrief({
     required DateTime wakeTime,
-    required DateTime triggerAt,
+    required DateTime firedAt,
   }) async {
-    // Удаляем любую ранее сохранённую запись этого уведомления
     await _plugin.cancel(NotificationIds.morningDebrief);
 
-    // tz.TZDateTime.from использует millisecondsSinceEpoch — правильно для любой зоны
     final scheduledDate = tz.TZDateTime.from(wakeTime, tz.local);
 
-    final h = triggerAt.hour.toString().padLeft(2, '0');
-    final m = triggerAt.minute.toString().padLeft(2, '0');
+    final h = firedAt.hour.toString().padLeft(2, '0');
+    final m = firedAt.minute.toString().padLeft(2, '0');
 
     await _plugin.zonedSchedule(
       NotificationIds.morningDebrief,

@@ -8,6 +8,8 @@ import '../../../domain/entities/sleep_session.dart';
 import '../../../domain/usecases/schedule/schedule_usecases.dart';
 import '../../../domain/usecases/engine/engine_usecases.dart';
 import '../../../services/background/rem_trigger_service.dart';
+import '../../../services/background/trigger_scheduler.dart';
+import '../../../services/notifications/notification_service.dart';
 import 'schedule_state.dart';
 
 class ScheduleCubit extends Cubit<ScheduleState> {
@@ -15,7 +17,6 @@ class ScheduleCubit extends Cubit<ScheduleState> {
   final SaveSleepScheduleUseCase _save;
   final DeleteSleepScheduleUseCase _delete;
   final CalculateRemTriggerUseCase _calculate;
-  final ActivateTriggerUseCase _activate;
   final CancelTriggerUseCase _cancelTrigger;
   final GetTodaySessionUseCase _getTodaySession;
   final SaveDebriefUseCase _saveDebrief;
@@ -29,7 +30,6 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     required SaveSleepScheduleUseCase save,
     required DeleteSleepScheduleUseCase delete,
     required CalculateRemTriggerUseCase calculate,
-    required ActivateTriggerUseCase activate,
     required CancelTriggerUseCase cancelTrigger,
     required GetTodaySessionUseCase getTodaySession,
     required SaveDebriefUseCase saveDebrief,
@@ -38,7 +38,6 @@ class ScheduleCubit extends Cubit<ScheduleState> {
         _save = save,
         _delete = delete,
         _calculate = calculate,
-        _activate = activate,
         _cancelTrigger = cancelTrigger,
         _getTodaySession = getTodaySession,
         _saveDebrief = saveDebrief,
@@ -57,7 +56,6 @@ class ScheduleCubit extends Cubit<ScheduleState> {
       onError: (e) => emit(ScheduleError(e.toString())),
     );
 
-    // Синхронизируем состояние REM-движка при старте приложения
     _syncServiceStateOnStart();
 
     // Обновляем UI когда сервис сохраняет сессию в другом изоляте
@@ -75,22 +73,11 @@ class ScheduleCubit extends Cubit<ScheduleState> {
           .firstOrNull;
 
       if (today == s.todaySession) return;
-
-      final newStatus = (today?.wasTriggered == true)
-          ? TriggerStatus.idle
-          : s.triggerStatus;
-
-      if (!isClosed) {
-        emit(s.copyWith(
-          todaySession: today,
-          triggerStatus: newStatus,
-          clearScheduled: today?.wasTriggered == true,
-        ));
-      }
+      if (!isClosed) emit(s.copyWith(todaySession: today));
     });
   }
 
-  /// Проверяем состояние сервиса при старте: если расписание активно
+  /// Синхронизируем состояние REM-движка при старте: если расписание активно
   /// и сервис не запущен — запускаем. Если расписание выключено — останавливаем.
   Future<void> _syncServiceStateOnStart() async {
     final schedule = await _get().first;
@@ -169,57 +156,18 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     emit(const ScheduleEmpty());
   }
 
-  // ── Триггер ───────────────────────────────────────────────────────────────
-
-  Future<void> activateTrigger() async {
-    final s = state;
-    if (s is! ScheduleLoaded) return;
-
-    emit(s.copyWith(triggerStatus: TriggerStatus.activating));
-
-    try {
-      final result = await _activate();
-
-      if (result.isSuccess) {
-        final triggerAt = result.triggerAt!;
-        debugPrint('[ScheduleCubit] Триггер активирован на $triggerAt');
-        if (!isClosed) {
-          emit(s.copyWith(
-            triggerStatus: TriggerStatus.active,
-            scheduledTriggerAt: triggerAt,
-          ));
-        }
-      } else {
-        if (!isClosed) emit(s.copyWith(triggerStatus: TriggerStatus.idle));
-      }
-    } catch (e) {
-      debugPrint('[ScheduleCubit] activateTrigger error: $e');
-      if (!isClosed) emit(s.copyWith(triggerStatus: TriggerStatus.idle));
-    }
-  }
+  // ── Тест ──────────────────────────────────────────────────────────────────
 
   /// Немедленно запускает триггер для тестирования (минуя проверку расписания).
   Future<void> testTriggerNow() async {
     final isRunning = await RemTriggerService.isRunning();
-    if (!isRunning) await RemTriggerService.start();
-    // Небольшая пауза чтобы изолят успел инициализировать Isar
-    await Future.delayed(const Duration(seconds: 2));
+    if (!isRunning) {
+      await RemTriggerService.start();
+      // Ожидаем инициализацию Isar в фоновом изоляте
+      await Future.delayed(const Duration(seconds: 5));
+    }
     RemTriggerService.testTrigger();
     debugPrint('[ScheduleCubit] testTriggerNow вызван.');
-  }
-
-  Future<void> cancelTrigger() async {
-    final s = state;
-    if (s is! ScheduleLoaded) return;
-
-    emit(s.copyWith(triggerStatus: TriggerStatus.cancelling));
-    await _cancelTrigger();
-    if (!isClosed) {
-      emit(s.copyWith(
-        triggerStatus: TriggerStatus.idle,
-        clearScheduled: true,
-      ));
-    }
   }
 
   // ── Дебриф ────────────────────────────────────────────────────────────────
@@ -247,7 +195,7 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     );
 
     await _saveDebrief(updated);
-    if (!isClosed) emit(s.copyWith(todaySession: updated));
+    if (!isClosed) emit(s.copyWith(todaySession: updated, showDebrief: false));
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -258,7 +206,6 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     final updated = transform(s.schedule);
     await _save(updated);
 
-    // Синхронизируем сервис при изменении isActive
     final wasActive = s.schedule.isActive;
     final nowActive = updated.isActive;
     if (wasActive != nowActive) {
@@ -266,8 +213,8 @@ class ScheduleCubit extends Cubit<ScheduleState> {
         debugPrint('[ScheduleCubit] isActive → true: запуск REM Engine.');
         await RemTriggerService.start();
       } else {
-        debugPrint('[ScheduleCubit] isActive → false: остановка REM Engine.');
-        RemTriggerService.stop();
+        debugPrint('[ScheduleCubit] isActive → false: остановка REM Engine и уведомлений.');
+        await TriggerScheduler.cancel();
       }
     }
   }
@@ -300,21 +247,19 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     final trigger = _calculate(schedule);
     final todaySession = await _getTodaySession();
 
-    final current = state;
-    final prevStatus = current is ScheduleLoaded
-        ? current.triggerStatus
-        : TriggerStatus.idle;
-    final prevScheduled =
-        current is ScheduleLoaded ? current.scheduledTriggerAt : null;
+    // Показываем дебриф только если пользователь тапнул уведомление
+    final showDebrief = NotificationService.debriefTapped &&
+        todaySession?.wasTriggered == true &&
+        todaySession?.lucidityLevel == LucidityLevel.none;
+    if (showDebrief) NotificationService.clearDebriefTap();
 
     if (!isClosed) {
       emit(ScheduleLoaded(
         schedule: schedule,
         remWindows: windows,
         triggerAt: trigger,
-        triggerStatus: prevStatus,
-        scheduledTriggerAt: prevScheduled,
         todaySession: todaySession,
+        showDebrief: showDebrief,
       ));
     }
   }
