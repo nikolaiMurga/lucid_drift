@@ -28,7 +28,9 @@ abstract final class RemServiceCommands {
 @pragma('vm:entry-point')
 void remServiceOnStart(ServiceInstance service) async {
   WidgetsFlutterBinding.ensureInitialized();
-  DartPluginRegistrant.ensureInitialized();
+  // flutter_background_service_android бросает ошибку при регистрации
+  // вне main isolate — это ожидаемо, сервис работает через ServiceInstance.
+  try { DartPluginRegistrant.ensureInitialized(); } catch (_) {}
   debugPrint('[REM] onStart: изолят инициализирован.');
 
   Timer? checkTimer;
@@ -120,7 +122,7 @@ void remServiceOnStart(ServiceInstance service) async {
 @pragma('vm:entry-point')
 Future<bool> remServiceOnIosBackground(ServiceInstance service) async {
   WidgetsFlutterBinding.ensureInitialized();
-  DartPluginRegistrant.ensureInitialized();
+  try { DartPluginRegistrant.ensureInitialized(); } catch (_) {}
   return true;
 }
 
