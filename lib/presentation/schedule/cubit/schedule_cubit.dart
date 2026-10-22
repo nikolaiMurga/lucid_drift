@@ -1,0 +1,273 @@
+import 'dart:async';
+import 'package:flutter/material.dart' hide TimeOfDay;
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:uuid/uuid.dart';
+import '../../../domain/entities/cycle_timeline.dart';
+import '../../../domain/entities/sleep_schedule.dart';
+import '../../../domain/entities/sleep_session.dart';
+import '../../../domain/usecases/schedule/schedule_usecases.dart';
+import '../../../domain/usecases/engine/engine_usecases.dart';
+import '../../../services/background/rem_trigger_service.dart';
+import '../../../services/background/trigger_scheduler.dart';
+import '../../../services/notifications/notification_service.dart';
+import 'schedule_state.dart';
+
+class ScheduleCubit extends Cubit<ScheduleState> {
+  final GetSleepScheduleUseCase _get;
+  final SaveSleepScheduleUseCase _save;
+  final DeleteSleepScheduleUseCase _delete;
+  final CalculateRemTriggerUseCase _calculate;
+  final CancelTriggerUseCase _cancelTrigger;
+  final GetTodaySessionUseCase _getTodaySession;
+  final SaveDebriefUseCase _saveDebrief;
+  final WatchSessionsUseCase _watchSessions;
+
+  StreamSubscription<SleepSchedule?>? _scheduleSub;
+  StreamSubscription<List<SleepSession>>? _sessionSub;
+
+  ScheduleCubit({
+    required GetSleepScheduleUseCase get,
+    required SaveSleepScheduleUseCase save,
+    required DeleteSleepScheduleUseCase delete,
+    required CalculateRemTriggerUseCase calculate,
+    required CancelTriggerUseCase cancelTrigger,
+    required GetTodaySessionUseCase getTodaySession,
+    required SaveDebriefUseCase saveDebrief,
+    required WatchSessionsUseCase watchSessions,
+  })  : _get = get,
+        _save = save,
+        _delete = delete,
+        _calculate = calculate,
+        _cancelTrigger = cancelTrigger,
+        _getTodaySession = getTodaySession,
+        _saveDebrief = saveDebrief,
+        _watchSessions = watchSessions,
+        super(const ScheduleLoading());
+
+  void init() {
+    _scheduleSub = _get().listen(
+      (schedule) async {
+        if (schedule == null) {
+          emit(const ScheduleEmpty());
+          return;
+        }
+        await _emitLoaded(schedule);
+      },
+      onError: (e) => emit(ScheduleError(e.toString())),
+    );
+
+    _syncServiceStateOnStart();
+
+    // Обновляем UI когда сервис сохраняет сессию в другом изоляте
+    _sessionSub = _watchSessions().listen((sessions) {
+      final s = state;
+      if (s is! ScheduleLoaded) return;
+
+      final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day);
+      final todayEnd = todayStart.add(const Duration(days: 1));
+
+      final today = sessions
+          .where((sess) =>
+              !sess.date.isBefore(todayStart) && sess.date.isBefore(todayEnd))
+          .firstOrNull;
+
+      if (today == s.todaySession) return;
+      if (!isClosed) emit(s.copyWith(todaySession: today));
+    });
+  }
+
+  /// Синхронизируем состояние REM-движка при старте: если расписание активно
+  /// и сервис не запущен — запускаем. Если расписание выключено — останавливаем.
+  Future<void> _syncServiceStateOnStart() async {
+    final schedule = await _get().first;
+    if (schedule == null) return;
+
+    final isRunning = await RemTriggerService.isRunning();
+
+    if (schedule.isActive && !isRunning) {
+      debugPrint('[ScheduleCubit] Start-up sync: запуск REM Engine.');
+      await RemTriggerService.start();
+    } else if (!schedule.isActive && isRunning) {
+      debugPrint('[ScheduleCubit] Start-up sync: остановка REM Engine.');
+      RemTriggerService.stop();
+    }
+  }
+
+  // ── Создание ──────────────────────────────────────────────────────────────
+
+  Future<SleepSchedule> createDefault() async {
+    final schedule = SleepSchedule(
+      id: const Uuid().v4(),
+      bedTime: const TimeOfDay(hour: 23, minute: 0),
+      wakeTime: const TimeOfDay(hour: 7, minute: 0),
+      activeDays: const [1, 2, 3, 4, 5],
+    );
+    await _save(schedule);
+    return schedule;
+  }
+
+  // ── Редактирование ────────────────────────────────────────────────────────
+
+  Future<void> updateBedTime(TimeOfDay time) =>
+      _update((s) => _rebuild(s, bedTime: time));
+
+  Future<void> updateWakeTime(TimeOfDay time) =>
+      _update((s) => _rebuild(s, wakeTime: time));
+
+  /// Добавляет или убирает цикл из списка целевых (минимум 1 всегда остаётся).
+  Future<void> toggleTargetCycle(SleepCycle cycle) => _update((s) {
+        final cycles = List<SleepCycle>.from(s.targetCycles);
+        if (cycles.contains(cycle)) {
+          if (cycles.length > 1) cycles.remove(cycle);
+        } else {
+          cycles.add(cycle);
+          cycles.sort((a, b) => a.index.compareTo(b.index));
+        }
+        return _rebuild(s, targetCycles: cycles);
+      });
+
+  Future<void> toggleDay(int weekday) => _update((s) {
+        final days = List<int>.from(s.activeDays);
+        days.contains(weekday) ? days.remove(weekday) : days.add(weekday);
+        return _rebuild(s, activeDays: days..sort());
+      });
+
+  Future<void> toggleActive() =>
+      _update((s) => _rebuild(s, isActive: !s.isActive));
+
+  Future<void> toggleWbtb() =>
+      _update((s) => _rebuild(s, wbtbMode: !s.wbtbMode));
+
+  Future<void> updateWbtbMins(int mins) =>
+      _update((s) => _rebuild(s, wbtbAwakeMins: mins));
+
+  /// Обновляет конфигурацию таймлайна одного REM-цикла и сохраняет расписание.
+  Future<void> updateCycleTimeline(int cycleIndex, CycleConfig config) =>
+      _update((s) {
+        final timelines = List<CycleConfig>.from(s.cycleTimelines);
+        timelines[cycleIndex] = config;
+        return _rebuild(s, cycleTimelines: timelines);
+      });
+
+  Future<void> deleteSchedule() async {
+    await _cancelTrigger();
+    await _delete();
+    emit(const ScheduleEmpty());
+  }
+
+  // ── Тест ──────────────────────────────────────────────────────────────────
+
+  /// Немедленно запускает триггер для тестирования (минуя проверку расписания).
+  Future<void> testTriggerNow() async {
+    final isRunning = await RemTriggerService.isRunning();
+    if (!isRunning) {
+      await RemTriggerService.start();
+      // Ожидаем инициализацию Isar в фоновом изоляте
+      await Future.delayed(const Duration(seconds: 5));
+    }
+    RemTriggerService.testTrigger();
+    debugPrint('[ScheduleCubit] testTriggerNow вызван.');
+  }
+
+  // ── Дебриф ────────────────────────────────────────────────────────────────
+
+  Future<void> saveDebrief({
+    required String sessionId,
+    required LucidityLevel lucidity,
+    String? notes,
+  }) async {
+    final s = state;
+    if (s is! ScheduleLoaded) return;
+
+    final session = s.todaySession;
+    if (session == null) return;
+
+    final updated = SleepSession(
+      id: session.id,
+      date: session.date,
+      triggeredAt: session.triggeredAt,
+      affirmationsPlayedCount: session.affirmationsPlayedCount,
+      triggersPlayedCount: session.triggersPlayedCount,
+      totalPlaybackDuration: session.totalPlaybackDuration,
+      lucidityLevel: lucidity,
+      notes: notes,
+    );
+
+    await _saveDebrief(updated);
+    if (!isClosed) emit(s.copyWith(todaySession: updated, showDebrief: false));
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  Future<void> _update(SleepSchedule Function(SleepSchedule) transform) async {
+    final s = state;
+    if (s is! ScheduleLoaded) return;
+    final updated = transform(s.schedule);
+    await _save(updated);
+
+    final wasActive = s.schedule.isActive;
+    final nowActive = updated.isActive;
+    if (wasActive != nowActive) {
+      if (nowActive) {
+        debugPrint('[ScheduleCubit] isActive → true: запуск REM Engine.');
+        await RemTriggerService.start();
+      } else {
+        debugPrint('[ScheduleCubit] isActive → false: остановка REM Engine и уведомлений.');
+        await TriggerScheduler.cancel();
+      }
+    }
+  }
+
+  SleepSchedule _rebuild(
+    SleepSchedule s, {
+    TimeOfDay? bedTime,
+    TimeOfDay? wakeTime,
+    List<SleepCycle>? targetCycles,
+    bool? isActive,
+    List<int>? activeDays,
+    bool? wbtbMode,
+    int? wbtbAwakeMins,
+    List<CycleConfig>? cycleTimelines,
+  }) =>
+      SleepSchedule(
+        id: s.id,
+        bedTime: bedTime ?? s.bedTime,
+        wakeTime: wakeTime ?? s.wakeTime,
+        targetCycles: targetCycles ?? s.targetCycles,
+        isActive: isActive ?? s.isActive,
+        activeDays: activeDays ?? s.activeDays,
+        wbtbMode: wbtbMode ?? s.wbtbMode,
+        wbtbAwakeMins: wbtbAwakeMins ?? s.wbtbAwakeMins,
+        cycleTimelines: cycleTimelines ?? s.cycleTimelines,
+      );
+
+  Future<void> _emitLoaded(SleepSchedule schedule) async {
+    final windows = _calculate.allWindows(schedule);
+    final trigger = _calculate(schedule);
+    final todaySession = await _getTodaySession();
+
+    // Показываем дебриф только если пользователь тапнул уведомление
+    final showDebrief = NotificationService.debriefTapped &&
+        todaySession?.wasTriggered == true &&
+        todaySession?.lucidityLevel == LucidityLevel.none;
+    if (showDebrief) NotificationService.clearDebriefTap();
+
+    if (!isClosed) {
+      emit(ScheduleLoaded(
+        schedule: schedule,
+        remWindows: windows,
+        triggerAt: trigger,
+        todaySession: todaySession,
+        showDebrief: showDebrief,
+      ));
+    }
+  }
+
+  @override
+  Future<void> close() {
+    _scheduleSub?.cancel();
+    _sessionSub?.cancel();
+    return super.close();
+  }
+}

@@ -53,3 +53,6 @@ app.*.map.json
 /android/gradle/wrapper/gradle-wrapper.properties
 /.google/gemini/instructions.md
 /instructions.md
+/roadmap_v2.html
+/rem_sleep_app_concept.html
+/.cursorrules
